@@ -1,5 +1,5 @@
 ---
-name: build flang-new for linux (x86_64)
+name: build flang for linux (x86_64)
 
 on:
   push:
@@ -15,10 +15,8 @@ on:
 
 jobs:
   build-linux-x86_64:
-    runs-on:
-      - self-hosted
-      - linux
-      - x64
+    runs-on: ubuntu-latest
+    # runs-on: [self-hosted, linux, x64]
     timeout-minutes: 360
     env:
       SCCACHE_GHA_ENABLED: "true"
