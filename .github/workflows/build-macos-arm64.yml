@@ -22,8 +22,8 @@ jobs:
       SCCACHE_GHA_ENABLED: "true"
       CMAKE_C_COMPILER_LAUNCHER: "sccache"
       CMAKE_CXX_COMPILER_LAUNCHER: "sccache"
-      CMAKE_BUILD_PARALLEL_LEVEL: "4"
-      LLVM_PARALLEL_COMPILE_JOBS: "4"
+      CMAKE_BUILD_PARALLEL_LEVEL: "2"
+      LLVM_PARALLEL_COMPILE_JOBS: "2"
       LLVM_PARALLEL_LINK_JOBS: "1"
 
     steps:
@@ -45,7 +45,19 @@ jobs:
 
       - name: Install dependencies
         run: |
-          brew install ninja cmake
+          brew install ninja cmake llvm lld
+
+      - name: Show brew info llvm
+        run: brew info llvm
+
+      - name: Set up PATH and verify clang
+        run: |
+          export PATH="/opt/homebrew/opt/llvm/bin:$PATH"
+          export LDFLAGS="-L/opt/homebrew/opt/llvm/lib"
+          export CPPFLAGS="-I/opt/homebrew/opt/llvm/include"
+          export CMAKE_PREFIX_PATH="/opt/homebrew/opt/llvm"
+          clang --version
+          ld.lld --version
 
       - name: Setup sccache
         uses: mozilla-actions/sccache-action@v0.0.9
@@ -58,10 +70,13 @@ jobs:
       - name: Configure CMake
         run: |
           cmake -S llvm-project/llvm -B build -G Ninja \
+                -D CMAKE_C_COMPILER="clang" \
+                -D CMAKE_CXX_COMPILER="clang++" \
                 -D LLVM_ENABLE_PROJECTS="clang;mlir;flang" \
                 -D LLVM_ENABLE_RUNTIMES="compiler-rt;flang-rt;openmp" \
                 -D LLVM_TARGETS_TO_BUILD="host;WebAssembly" \
                 -D LLVM_DEFAULT_TARGET_TRIPLE="arm64-apple-darwin" \
+                -D CMAKE_OSX_ARCHITECTURES="arm64" \
                 -D CMAKE_INSTALL_PREFIX="install" \
                 -D CMAKE_BUILD_TYPE=MinSizeRel \
                 -D LLVM_INCLUDE_TOOLS=ON \
