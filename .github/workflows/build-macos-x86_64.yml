@@ -1,0 +1,231 @@
+---
+name: build flang for macos (x86_64)
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - '.github/workflows/build-macos-x86_64.yml'
+  pull_request:
+    branches: [master]
+    paths:
+      - '.github/workflows/build-macos-x86_64.yml'
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  build-macos-x86_64:
+    runs-on: macos-15-intel
+    # runs-on: [self-hosted, macos, x64]
+    timeout-minutes: 360
+    env:
+      SCCACHE_GHA_ENABLED: "true"
+      CMAKE_C_COMPILER_LAUNCHER: "sccache"
+      CMAKE_CXX_COMPILER_LAUNCHER: "sccache"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Show system information
+        run: |
+          echo "=== System Information ==="
+          echo "CPU cores: $(sysctl -n hw.ncpu)"
+          echo "CPU info:"
+          sysctl -n machdep.cpu.brand_string
+          echo ""
+          echo "=== Memory Information ==="
+          echo "Total Memory: $(sysctl -n hw.memsize | awk '{print $1/1024/1024/1024 " GB"}')"
+          echo ""
+          echo "=== Disk Information ==="
+          df -h
+
+      - name: Install dependencies
+        run: |
+          brew install ninja cmake
+
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@v0.0.9
+
+      - name: Clone LLVM Project
+        run: |
+          git clone --depth=1 --branch=llvmorg-21.1.3 \
+            https://github.com/llvm/llvm-project.git
+
+      - name: Configure CMake
+        run: |
+          cmake -S llvm-project/llvm -B build -G Ninja \
+                -D LLVM_ENABLE_PROJECTS="clang;mlir;flang" \
+                -D LLVM_ENABLE_RUNTIMES="compiler-rt;flang-rt;openmp" \
+                -D LLVM_TARGETS_TO_BUILD="host;WebAssembly" \
+                -D LLVM_DEFAULT_TARGET_TRIPLE="x86_64-apple-darwin" \
+                -D CMAKE_INSTALL_PREFIX="install" \
+                -D CMAKE_BUILD_TYPE=MinSizeRel \
+                -D LLVM_INCLUDE_TOOLS=ON \
+                -D LLVM_BUILD_TOOLS=OFF \
+                -D LLVM_INCLUDE_UTILS=OFF \
+                -D LLVM_BUILD_UTILS=OFF \
+                -D LLVM_INCLUDE_EXAMPLES=OFF \
+                -D LLVM_BUILD_EXAMPLES=OFF \
+                -D LLVM_INCLUDE_TESTS=OFF \
+                -D LLVM_BUILD_TESTS=OFF \
+                -D LLVM_BUILD_LLVM_C_DYLIB=OFF \
+                -D LLVM_INCLUDE_DOCS=OFF \
+                -D LLVM_BUILD_BENCHMARKS=OFF \
+                -D LLVM_INCLUDE_BENCHMARKS=OFF \
+                -D LLVM_ENABLE_OCAMLDOC=OFF \
+                -D LLVM_ENABLE_BINDINGS=OFF \
+                -D LLVM_ENABLE_ZLIB=OFF \
+                -D LLVM_ENABLE_ZSTD=OFF \
+                -D LLVM_ENABLE_TELEMETRY=OFF \
+                -D LLVM_ENABLE_PLUGINS=OFF \
+                -D LLVM_INCLUDE_RUNTIMES=ON \
+                -D LLVM_BUILD_RUNTIME=OFF \
+                -D LLVM_BUILD_RUNTIMES=ON \
+                \
+                -D MLIR_INCLUDE_TESTS=OFF \
+                -D FLANG_INCLUDE_TESTS=OFF \
+                -D FLANG_INCLUDE_TOOLS=ON \
+                -D FLANG_BUILD_TOOLS=OFF \
+                -D CLANG_INCLUDE_TESTS=OFF \
+                -D CLANG_BUILD_TOOLS=OFF \
+                -D CLANG_PLUGIN_SUPPORT=FALSE \
+                -D CLANG_ENABLE_ARCMT=FALSE \
+                -D CLANG_ENABLE_STATIC_ANALYZER=FALSE \
+                -D CLANG_TOOL_APINOTES_TEST_BUILD=FALSE \
+                -D CLANG_TOOL_CLANG_CHECK_BUILD=FALSE \
+                -D CLANG_TOOL_CLANG_DIFF_BUILD=FALSE \
+                -D CLANG_TOOL_CLANG_EXTDEF_MAPPING_BUILD=FALSE \
+                -D CLANG_TOOL_CLANG_FORMAT_BUILD=FALSE \
+                -D CLANG_TOOL_CLANG_FUZZER_BUILD=FALSE \
+                -D CLANG_TOOL_CLANG_IMPORT_TEST_BUILD=FALSE \
+                -D CLANG_TOOL_CLANG_LINKER_WRAPPER_BUILD=FALSE \
+                -D CLANG_TOOL_CLANG_NVLINK_WRAPPER_BUILD=FALSE \
+                -D CLANG_TOOL_CLANG_OFFLOAD_BUNDLER_BUILD=FALSE \
+                -D CLANG_TOOL_CLANG_OFFLOAD_PACKAGER_BUILD=FALSE \
+                -D CLANG_TOOL_CLANG_REFACTOR_BUILD=FALSE \
+                -D CLANG_TOOL_CLANG_REPL_BUILD=FALSE \
+                -D CLANG_TOOL_CLANG_SCAN_DEPS_BUILD=FALSE \
+                -D CLANG_TOOL_CLANG_SHLIB_BUILD=FALSE \
+                -D CLANG_TOOL_C_INDEX_TEST_BUILD=FALSE \
+                -D CLANG_TOOL_DIAGTOOL_BUILD=FALSE \
+                -D CLANG_TOOL_DRIVER_BUILD=TRUE \
+                -D CLANG_TOOL_LIBCLANG_BUILD=FALSE \
+                -D CLANG_TOOL_SCAN_BUILD_BUILD=FALSE \
+                -D CLANG_TOOL_SCAN_BUILD_PY_BUILD=FALSE \
+                -D CLANG_TOOL_CLANG_OFFLOAD_BUNDLER_BUILD=FALSE \
+                -D CLANG_TOOL_SCAN_VIEW_BUILD=FALSE \
+                -D LLVM_ENABLE_BINDINGS=FALSE \
+                -D LLVM_ENABLE_OCAMLDOC=FALSE \
+                -D LLVM_TOOL_BUGPOINT_BUILD=FALSE \
+                -D LLVM_TOOL_BUGPOINT_PASSES_BUILD=FALSE \
+                -D LLVM_TOOL_CLANG_BUILD=FALSE \
+                -D LLVM_TOOL_DSYMUTIL_BUILD=FALSE \
+                -D LLVM_TOOL_DXIL_DIS_BUILD=FALSE \
+                -D LLVM_TOOL_GOLD_BUILD=FALSE \
+                -D LLVM_TOOL_LLC_BUILD=FALSE \
+                -D LLVM_TOOL_LLDB_BUILD=FALSE \
+                -D LLVM_TOOL_LLI_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_AR_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_AS_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_AS_FUZZER_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_BCANALYZER_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_CAT_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_CFI_VERIFY_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_COV_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_CVTRES_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_CXXDUMP_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_CXXFILT_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_CXXMAP_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_C_TEST_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_DEBUGINFOD_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_DEBUGINFOD_FIND_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_DIFF_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_DIS_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_DIS_FUZZER_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_DLANG_DEMANGLE_FUZZER_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_DWARFDUMP_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_DWARFUTIL_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_DWP_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_EXEGESIS_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_EXTRACT_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_GSYMUTIL_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_IFS_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_ISEL_FUZZER_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_ITANIUM_DEMANGLE_FUZZER_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_JITLINK_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_JITLISTENER_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_LIBTOOL_DARWIN_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_LINK_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_LIPO_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_LTO2_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_LTO_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_MCA_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_MC_ASSEMBLE_FUZZER_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_MC_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_MC_DISASSEMBLE_FUZZER_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_MICROSOFT_DEMANGLE_FUZZER_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_ML_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_MODEXTRACT_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_MT_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_NM_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_OBJCOPY_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_OBJDUMP_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_OPT_FUZZER_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_OPT_REPORT_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_PDBUTIL_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_PROFDATA_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_PROFGEN_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_RC_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_READOBJ_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_REDUCE_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_RTDYLD_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_RUST_DEMANGLE_FUZZER_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_SHLIB_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_SIM_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_SIZE_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_SPECIAL_CASE_LIST_FUZZER_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_SPLIT_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_STRESS_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_STRINGS_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_SYMBOLIZER_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_TLI_CHECKER_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_UNDNAME_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_XRAY_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_YAML_NUMERIC_PARSER_FUZZER_BUILD=FALSE \
+                -D LLVM_TOOL_LLVM_YAML_PARSER_FUZZER_BUILD=FALSE \
+                -D LLVM_TOOL_LTO_BUILD=FALSE \
+                -D LLVM_TOOL_OBJ2YAML_BUILD=FALSE \
+                -D LLVM_TOOL_OPT_BUILD=FALSE \
+                -D LLVM_TOOL_OPT_VIEWER_BUILD=FALSE \
+                -D LLVM_TOOL_REMARKS_SHLIB_BUILD=FALSE \
+                -D LLVM_TOOL_SANCOV_BUILD=FALSE \
+                -D LLVM_TOOL_SANSTATS_BUILD=FALSE \
+                -D LLVM_TOOL_VERIFY_USELISTORDER_BUILD=FALSE \
+                -D LLVM_TOOL_VFABI_DEMANGLE_FUZZER_BUILD=FALSE \
+                -D LLVM_TOOL_XCODE_TOOLCHAIN_BUILD=FALSE \
+                -D LLVM_TOOL_YAML2OBJ_BUILD=FALSE
+
+      - name: Build
+        run: |
+          cmake --build build --config MinSizeRel --parallel
+
+      - name: Install
+        run: |
+          cmake --install build --config MinSizeRel
+
+      - name: Show sccache statistics
+        run: |
+          echo "=== sccache Statistics ==="
+          sccache --show-stats
+
+      - name: Package binaries
+        run: |
+          tar -czf flang+llvm-21.1.3-x86_64-apple-darwin.tar.gz install
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: flang+llvm-21.1.3-x86_64-apple-darwin
+          path: flang+llvm-21.1.3-x86_64-apple-darwin.tar.gz
+          retention-days: 30
