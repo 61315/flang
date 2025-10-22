@@ -59,6 +59,9 @@ jobs:
           git clone --depth=1 --branch=llvmorg-${{ env.LLVM_VERSION }} `
             https://github.com/llvm/llvm-project.git
             
+      - name: Apply patches
+        run: git -C llvm-project apply --whitespace=fix ../patches/disable-flang-pch-for-sccache.patch
+
       - name: Configure CMake
         run: |
           cmake -S llvm-project/llvm -B build -G Ninja `
