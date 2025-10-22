@@ -26,6 +26,8 @@ jobs:
       LLVM_PARALLEL_COMPILE_JOBS: "4"
       LLVM_PARALLEL_LINK_JOBS: "any"
       # LLVM_USE_LINKER: "lld" # https://reviews.llvm.org/D72402
+      TARGET_TRIPLE: "x86_64-unknown-linux-gnu"
+      LLVM_VERSION: "21.1.3"
 
     steps:
       - name: Checkout repository
@@ -54,7 +56,7 @@ jobs:
 
       - name: Clone LLVM Project
         run: |
-          git clone --depth=1 --branch=llvmorg-21.1.3 \
+          git clone --depth=1 --branch=llvmorg-${{ env.LLVM_VERSION }} \
             https://github.com/llvm/llvm-project.git
 
       - name: Configure CMake
@@ -63,7 +65,7 @@ jobs:
                 -D LLVM_ENABLE_PROJECTS="clang;mlir;flang" \
                 -D LLVM_ENABLE_RUNTIMES="compiler-rt;flang-rt;openmp" \
                 -D LLVM_TARGETS_TO_BUILD="host;WebAssembly" \
-                -D LLVM_DEFAULT_TARGET_TRIPLE="x86_64-unknown-linux-gnu" \
+                -D LLVM_DEFAULT_TARGET_TRIPLE="${{ env.TARGET_TRIPLE }}" \
                 -D CMAKE_INSTALL_PREFIX="install" \
                 -D CMAKE_BUILD_TYPE=MinSizeRel \
                 -D LLVM_USE_LINKER=lld \
@@ -227,11 +229,11 @@ jobs:
 
       - name: Package binaries
         run: |
-          tar -czf flang+llvm-21.1.3-x86_64-unknown-linux-gnu.tar.gz install
+          tar -czf flang+llvm-${{ env.LLVM_VERSION }}-${{ env.TARGET_TRIPLE }}.tar.gz install
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: flang+llvm-21.1.3-x86_64-unknown-linux-gnu
-          path: flang+llvm-21.1.3-x86_64-unknown-linux-gnu.tar.gz
+          name: flang+llvm-${{ env.LLVM_VERSION }}-${{ env.TARGET_TRIPLE }}
+          path: flang+llvm-${{ env.LLVM_VERSION }}-${{ env.TARGET_TRIPLE }}.tar.gz
           retention-days: 30

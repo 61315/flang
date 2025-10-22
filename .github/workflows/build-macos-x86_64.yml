@@ -22,6 +22,8 @@ jobs:
       SCCACHE_GHA_ENABLED: "true"
       CMAKE_C_COMPILER_LAUNCHER: "sccache"
       CMAKE_CXX_COMPILER_LAUNCHER: "sccache"
+      TARGET_TRIPLE: "x86_64-apple-darwin"
+      LLVM_VERSION: "21.1.3"
 
     steps:
       - name: Checkout repository
@@ -49,7 +51,7 @@ jobs:
 
       - name: Clone LLVM Project
         run: |
-          git clone --depth=1 --branch=llvmorg-21.1.3 \
+          git clone --depth=1 --branch=llvmorg-${{ env.LLVM_VERSION }} \
             https://github.com/llvm/llvm-project.git
 
       - name: Configure CMake
@@ -58,7 +60,7 @@ jobs:
                 -D LLVM_ENABLE_PROJECTS="clang;mlir;flang" \
                 -D LLVM_ENABLE_RUNTIMES="compiler-rt;flang-rt;openmp" \
                 -D LLVM_TARGETS_TO_BUILD="host;WebAssembly" \
-                -D LLVM_DEFAULT_TARGET_TRIPLE="x86_64-apple-darwin" \
+                -D LLVM_DEFAULT_TARGET_TRIPLE="${{ env.TARGET_TRIPLE }}" \
                 -D CMAKE_INSTALL_PREFIX="install" \
                 -D CMAKE_BUILD_TYPE=MinSizeRel \
                 -D LLVM_INCLUDE_TOOLS=ON \
@@ -221,11 +223,11 @@ jobs:
 
       - name: Package binaries
         run: |
-          tar -czf flang+llvm-21.1.3-x86_64-apple-darwin.tar.gz install
+          tar -czf flang+llvm-${{ env.LLVM_VERSION }}-${{ env.TARGET_TRIPLE }}.tar.gz install
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: flang+llvm-21.1.3-x86_64-apple-darwin
-          path: flang+llvm-21.1.3-x86_64-apple-darwin.tar.gz
+          name: flang+llvm-${{ env.LLVM_VERSION }}-${{ env.TARGET_TRIPLE }}
+          path: flang+llvm-${{ env.LLVM_VERSION }}-${{ env.TARGET_TRIPLE }}.tar.gz
           retention-days: 30
