@@ -239,7 +239,17 @@ jobs:
                 -DLLVM_TOOL_VERIFY_USELISTORDER_BUILD=OFF `
                 -DLLVM_TOOL_VFABI_DEMANGLE_FUZZER_BUILD=OFF `
                 -DLLVM_TOOL_XCODE_TOOLCHAIN_BUILD=OFF `
-                -DLLVM_TOOL_YAML2OBJ_BUILD=OFF
+                -DLLVM_TOOL_YAML2OBJ_BUILD=OFF `
+                -DCOMPILER_RT_BUILD_BUILTINS=ON `
+                -DCOMPILER_RT_BUILD_CRT=ON `
+                -DCOMPILER_RT_BUILD_SANITIZERS=OFF `
+                -DCOMPILER_RT_BUILD_XRAY=OFF `
+                -DCOMPILER_RT_BUILD_LIBFUZZER=OFF `
+                -DCOMPILER_RT_BUILD_PROFILE=OFF `
+                -DCOMPILER_RT_BUILD_CTX_PROFILE=OFF `
+                -DCOMPILER_RT_BUILD_MEMPROF=OFF `
+                -DCOMPILER_RT_BUILD_ORC=OFF `
+                -DCOMPILER_RT_BUILD_GWP_ASAN=OFF
 
       - name: Build
         run: |
