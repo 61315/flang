@@ -1,0 +1,34 @@
+Outputs and logs will be written to: ./out
+[2025-10-25 08:51:19] ================================================================
+[2025-10-25 08:51:19] ==> ./install/bin/flang -###
+[2025-10-25 08:51:20] flang version 21.1.3
+[2025-10-25 08:51:20] Target: x86_64-unknown-linux-gnu
+[2025-10-25 08:51:20] Thread model: posix
+[2025-10-25 08:51:20] InstalledDir: /work/install/bin
+[2025-10-25 08:51:20] ================================================================
+[2025-10-25 08:51:20] ==> ./install/bin/flang ./src/main.f08 -o ./out/main-f
+[2025-10-25 08:51:22] /tmp/main-db4eb4.o: In function `_QQmain':
+[2025-10-25 08:51:22] FIRModule:(.text+0x23): undefined reference to `foo_'
+[2025-10-25 08:51:22] flang-21: error: linker command failed with exit code 1 (use -v to see invocation)
+[2025-10-25 08:51:22] ERROR: command exited with code 1: ./install/bin/flang ./src/main.f08 -o ./out/main-f
+[2025-10-25 08:51:22] ================================================================
+[2025-10-25 08:51:22] ==> ./install/bin/flang -c ./src/foo.f08 -o ./out/foo.o
+[2025-10-25 08:51:23] ================================================================
+[2025-10-25 08:51:23] ==> ./install/bin/flang ./src/main.f08 ./out/foo.o -o ./out/main-f -###
+[2025-10-25 08:51:23] flang version 21.1.3
+[2025-10-25 08:51:23] Target: x86_64-unknown-linux-gnu
+[2025-10-25 08:51:23] Thread model: posix
+[2025-10-25 08:51:23] InstalledDir: /work/install/bin
+[2025-10-25 08:51:23]  "/work/install/bin/flang" "-fc1" "-triple" "x86_64-unknown-linux-gnu" "-emit-obj" "-mrelocation-model" "pic" "-pic-level" "2" "-pic-is-pie" "-target-cpu" "x86-64" "-resource-dir" "/work/install/lib/clang/21" "-mframe-pointer=all" "-o" "/tmp/main-66109f.o" "-x" "f95" "./src/main.f08"
+[2025-10-25 08:51:23]  "/usr/bin/ld" "-z" "relro" "--hash-style=gnu" "--eh-frame-hdr" "-m" "elf_x86_64" "-pie" "-dynamic-linker" "/lib64/ld-linux-x86-64.so.2" "-o" "./out/main-f" "/usr/lib/x86_64-linux-gnu/Scrt1.o" "/usr/lib/x86_64-linux-gnu/crti.o" "/work/install/lib/clang/21/lib/x86_64-unknown-linux-gnu/clang_rt.crtbegin.o" "-L/work/install/bin/../lib/x86_64-unknown-linux-gnu" "-L/work/install/lib/clang/21/lib/x86_64-unknown-linux-gnu" "-L/usr/lib/gcc/x86_64-linux-gnu/7" "-L/lib/x86_64-linux-gnu" "-L/lib/../lib64" "-L/usr/lib/x86_64-linux-gnu" "-L/lib" "-L/usr/lib" "/tmp/main-66109f.o" "./out/foo.o" "-L/work/install/lib" "-lflang_rt.runtime" "-lm" "/work/install/lib/clang/21/lib/x86_64-unknown-linux-gnu/libclang_rt.builtins.a" "--as-needed" "-lunwind" "--no-as-needed" "-lc" "/work/install/lib/clang/21/lib/x86_64-unknown-linux-gnu/libclang_rt.builtins.a" "--as-needed" "-lunwind" "--no-as-needed" "/work/install/lib/clang/21/lib/x86_64-unknown-linux-gnu/clang_rt.crtend.o" "/usr/lib/x86_64-linux-gnu/crtn.o"
+[2025-10-25 08:51:23] ================================================================
+[2025-10-25 08:51:23] ==> ./install/bin/flang ./src/main.f08 ./out/foo.o -o ./out/main-f
+[2025-10-25 08:51:25] ================================================================
+[2025-10-25 08:51:25] ==> ./out/main-f
+[2025-10-25 08:51:25]  main.f08:: 1 + 1 = 2
+[2025-10-25 08:51:25] ================================================================
+[2025-10-25 08:51:25] ==> cc ./src/main.c ./out/foo.o -o ./out/main-c
+[2025-10-25 08:51:25] ================================================================
+[2025-10-25 08:51:25] ==> ./out/main-c
+[2025-10-25 08:51:25] main.c::1 + 1 = 2
+Done. Full log: ./out/run_flang.log

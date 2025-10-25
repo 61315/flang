@@ -1,0 +1,9 @@
+FROM fedora:latest
+RUN dnf -y install \
+    gcc && \
+    dnf clean all
+
+ENV PATH="/opt/flang/bin:$PATH"
+
+WORKDIR /work
+CMD ["/bin/bash"]

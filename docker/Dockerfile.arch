@@ -1,0 +1,11 @@
+FROM archlinux:latest
+
+RUN pacman -Syu --noconfirm && \
+    pacman -S --noconfirm gcc && \
+    pacman -Scc --noconfirm && \
+    rm -rf /var/cache/pacman/pkg/* /usr/share/{man,info,doc} /usr/lib/gcc/*/install-tools
+
+ENV PATH="/opt/flang/bin:$PATH"
+
+WORKDIR /work
+CMD ["/bin/bash"]

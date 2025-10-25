@@ -1,0 +1,11 @@
+FROM debian:stable
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential && \
+    rm -rf /var/lib/apt/lists/*
+
+ENV PATH="/opt/flang/bin:$PATH"
+
+WORKDIR /work
+CMD ["/bin/bash"]

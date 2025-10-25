@@ -1,0 +1,8 @@
+FROM alpine:latest
+
+RUN apk add --no-cache bash build-base
+
+ENV PATH="/opt/flang/bin:$PATH"
+
+WORKDIR /work
+CMD ["/bin/sh"]
