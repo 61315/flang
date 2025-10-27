@@ -62,10 +62,10 @@ jobs:
                 -DLLVM_USE_LINKER="" \
                 -DCMAKE_C_COMPILER_LAUNCHER=sccache \
                 -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
-                -DLLVM_PARALLEL_COMPILE_JOBS="" \
-                -DLLVM_PARALLEL_LINK_JOBS="" \
-                -DLLVM_PARALLEL_TABLEGEN_JOBS="" \
-                -DFLANG_PARALLEL_COMPILE_JOBS="" \
+                -DLLVM_PARALLEL_COMPILE_JOBS="2" \
+                -DLLVM_PARALLEL_LINK_JOBS="1" \
+                -DLLVM_PARALLEL_TABLEGEN_JOBS="2" \
+                -DFLANG_PARALLEL_COMPILE_JOBS="2" \
                 -DCMAKE_C_FLAGS="-Xclang -fno-pch-timestamp" \
                 -DCMAKE_CXX_FLAGS="-Xclang -fno-pch-timestamp" \
                 -DCMAKE_OSX_ARCHITECTURES="arm64" \

@@ -63,9 +63,9 @@ jobs:
           cmake -S llvm-project/llvm -B build -G Ninja \
                 -DLLVM_USE_LINKER="mold" \
                 -DLLVM_PARALLEL_COMPILE_JOBS="" \
-                -DLLVM_PARALLEL_LINK_JOBS="" \
-                -DLLVM_PARALLEL_TABLEGEN_JOBS="" \
-                -DFLANG_PARALLEL_COMPILE_JOBS="" \
+                -DLLVM_PARALLEL_LINK_JOBS="2" \
+                -DLLVM_PARALLEL_TABLEGEN_JOBS="4" \
+                -DFLANG_PARALLEL_COMPILE_JOBS="2" \
                 -DCMAKE_OSX_ARCHITECTURES="" \
                 -DLLVM_DEFAULT_TARGET_TRIPLE="x86_64-unknown-linux-gnu" \
                 -DCMAKE_BUILD_TYPE="Release" \

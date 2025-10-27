@@ -3,7 +3,7 @@ name: build flang for linux (x86_64)
 
 on:
   push:
-    branches: [master, musl]
+    branches: [master]
     paths:
       - '.github/workflows/build-linux-static-x86_64.yml'
       - '.github/workflows/containers/llvm-musl-builder/**'
