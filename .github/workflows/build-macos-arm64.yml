@@ -60,19 +60,23 @@ jobs:
         run: |
           cmake -S llvm-project/llvm -B build -G Ninja \
                 -DLLVM_USE_LINKER="" \
-                -DLLVM_PARALLEL_COMPILE_JOBS="2" \
-                -DLLVM_PARALLEL_LINK_JOBS="1" \
-                -DLLVM_PARALLEL_TABLEGEN_JOBS="2" \
-                -DFLANG_PARALLEL_COMPILE_JOBS="2" \
+                -DCMAKE_C_COMPILER_LAUNCHER=sccache \
+                -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
+                -DLLVM_PARALLEL_COMPILE_JOBS="" \
+                -DLLVM_PARALLEL_LINK_JOBS="" \
+                -DLLVM_PARALLEL_TABLEGEN_JOBS="" \
+                -DFLANG_PARALLEL_COMPILE_JOBS="" \
+                -DCMAKE_C_FLAGS="-Xclang -fno-pch-timestamp" \
+                -DCMAKE_CXX_FLAGS="-Xclang -fno-pch-timestamp" \
                 -DCMAKE_OSX_ARCHITECTURES="arm64" \
                 -DLLVM_DEFAULT_TARGET_TRIPLE="arm64-apple-darwin" \
-                -DCMAKE_BUILD_TYPE="MinSizeRel" \
+                -DCMAKE_BUILD_TYPE="Release" \
                 -DCMAKE_INSTALL_PREFIX="install" \
                 -DLLVM_TARGETS_TO_BUILD="host;WebAssembly" \
                 -DLLVM_ENABLE_PROJECTS="clang;mlir;flang" \
                 -DLLVM_ENABLE_RUNTIMES="compiler-rt;flang-rt;openmp" \
                 -DLLVM_INCLUDE_TOOLS=ON \
-                -DLLVM_BUILD_TOOLS=OFF \
+                -DLLVM_BUILD_TOOLS=ON \
                 -DLLVM_INCLUDE_UTILS=OFF \
                 -DLLVM_BUILD_UTILS=OFF \
                 -DLLVM_INCLUDE_EXAMPLES=OFF \
@@ -234,16 +238,16 @@ jobs:
                 -DLLVM_TOOL_VFABI_DEMANGLE_FUZZER_BUILD=OFF \
                 -DLLVM_TOOL_XCODE_TOOLCHAIN_BUILD=OFF \
                 -DLLVM_TOOL_YAML2OBJ_BUILD=OFF \
-                -D COMPILER_RT_BUILD_BUILTINS=ON \
-                -D COMPILER_RT_BUILD_CRT=ON \
-                -D COMPILER_RT_BUILD_SANITIZERS=OFF \
-                -D COMPILER_RT_BUILD_XRAY=OFF \
-                -D COMPILER_RT_BUILD_LIBFUZZER=OFF \
-                -D COMPILER_RT_BUILD_PROFILE=OFF \
-                -D COMPILER_RT_BUILD_CTX_PROFILE=OFF \
-                -D COMPILER_RT_BUILD_MEMPROF=OFF \
-                -D COMPILER_RT_BUILD_ORC=OFF \
-                -D COMPILER_RT_BUILD_GWP_ASAN=OFF
+                -DCOMPILER_RT_BUILD_BUILTINS=ON \
+                -DCOMPILER_RT_BUILD_CRT=ON \
+                -DCOMPILER_RT_BUILD_SANITIZERS=OFF \
+                -DCOMPILER_RT_BUILD_XRAY=OFF \
+                -DCOMPILER_RT_BUILD_LIBFUZZER=OFF \
+                -DCOMPILER_RT_BUILD_PROFILE=OFF \
+                -DCOMPILER_RT_BUILD_CTX_PROFILE=OFF \
+                -DCOMPILER_RT_BUILD_MEMPROF=OFF \
+                -DCOMPILER_RT_BUILD_ORC=OFF \
+                -DCOMPILER_RT_BUILD_GWP_ASAN=OFF
 
       - name: Build
         run: |
