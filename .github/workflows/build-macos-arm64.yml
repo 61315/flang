@@ -251,24 +251,25 @@ jobs:
 
       - name: Build
         run: |
-          cmake --build build --config MinSizeRel
+          echo "=== Building ==="
+          ninja -C build runtimes
 
       - name: Install
         run: |
-          cmake --install build --config MinSizeRel
+          echo "=== Installing ==="
+          ninja -C build runtimes/install
+          ninja -C build tools/flang/tools/install
+          ninja -C build tools/llvm-nm/install
+          ninja -C build tools/llvm-ar/install
 
       - name: Show sccache statistics
         run: |
           echo "=== sccache Statistics ==="
           sccache --show-stats
 
-      - name: Prepare distribution package
-        run: |
-          cmake -P install-arm64-apple-darwin.cmake
-
       - name: Package binaries
         run: |
-          tar -czf flang+llvm-${{ env.LLVM_VERSION }}-${{ env.TARGET_TRIPLE }}.tar.gz dist
+          tar -czf flang+llvm-${{ env.LLVM_VERSION }}-${{ env.TARGET_TRIPLE }}.tar.gz install
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

@@ -259,11 +259,16 @@ jobs:
 
       - name: Build
         run: |
-          cmake --build build --config MinSizeRel
+          echo "=== Building ==="
+          ninja -C build runtimes
 
       - name: Install
         run: |
-          cmake --install build --config MinSizeRel
+          echo "=== Installing ==="
+          ninja -C build runtimes/install
+          ninja -C build tools/flang/tools/install
+          ninja -C build tools/llvm-nm/install
+          ninja -C build tools/llvm-ar/install
 
       - name: Show sccache statistics
         shell: pwsh
@@ -271,16 +276,12 @@ jobs:
           Write-Host "=== sccache Statistics ==="
           sccache --show-stats
 
-      - name: Prepare distribution package
-        run: |
-          cmake -P install-x86_64-pc-windows-msvc.cmake
-
       - name: Package binaries
         shell: pwsh
         run: |
           $out = "flang+llvm-${{ env.LLVM_VERSION }}-${{ env.TARGET_TRIPLE }}.zip"
           if (Test-Path $out) { Remove-Item $out -Force }
-          Compress-Archive -Path 'dist\*' -DestinationPath $out -Force
+          Compress-Archive -Path 'install\*' -DestinationPath $out -Force
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
