@@ -343,8 +343,9 @@ jobs:
               sccache --show-stats
 
               echo "=== Creating tarball ==="
-              cd /work/install
-              tar czf flang+llvm-${{ env.LLVM_VERSION }}-${{ env.TARGET_TRIPLE }}.tar.gz *
+              cd /work
+              mv install flang+llvm-${{ env.LLVM_VERSION }}
+              tar czf flang+llvm-${{ env.LLVM_VERSION }}-${{ env.TARGET_TRIPLE }}.tar.gz flang+llvm-${{ env.LLVM_VERSION }}
             '
 
       - name: Show sccache statistics
@@ -356,7 +357,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: flang+llvm-${{ env.LLVM_VERSION }}-${{ env.TARGET_TRIPLE }}
-          path: install/flang+llvm-${{ env.LLVM_VERSION }}-${{ env.TARGET_TRIPLE }}.tar.gz
+          path: flang+llvm-${{ env.LLVM_VERSION }}-${{ env.TARGET_TRIPLE }}.tar.gz
           retention-days: 30
 
       - name: Show build artifacts

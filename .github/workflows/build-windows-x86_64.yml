@@ -50,9 +50,9 @@ jobs:
         with:
           version: "v0.12.0"
 
-      - name: Install Ninja
-        run: |
-          choco install ninja
+      # - name: Install Ninja
+      #   run: |
+      #     choco install ninja
 
       - name: Cache LLVM Source
         id: cache-llvm
@@ -294,8 +294,8 @@ jobs:
         shell: pwsh
         run: |
           $out = "flang+llvm-${{ env.LLVM_VERSION }}-${{ env.TARGET_TRIPLE }}.zip"
-          if (Test-Path $out) { Remove-Item $out -Force }
-          Compress-Archive -Path 'install\*' -DestinationPath $out -Force
+          Rename-Item -Path install -NewName flang+llvm-${{ env.LLVM_VERSION }}
+          Compress-Archive -Path flang+llvm-${{ env.LLVM_VERSION }} -DestinationPath $out -Force
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

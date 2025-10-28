@@ -42,9 +42,9 @@ jobs:
           echo "=== Disk Information ==="
           df -h
 
-      - name: Install dependencies
-        run: |
-          brew install ninja cmake
+      # - name: Install dependencies
+      #   run: |
+      #     brew install ninja cmake
 
       - name: Setup sccache
         uses: mozilla-actions/sccache-action@v0.0.9
@@ -276,7 +276,8 @@ jobs:
 
       - name: Package binaries
         run: |
-          tar -czf flang+llvm-${{ env.LLVM_VERSION }}-${{ env.TARGET_TRIPLE }}.tar.gz install
+          mv install flang+llvm-${{ env.LLVM_VERSION }}
+          tar -czf flang+llvm-${{ env.LLVM_VERSION }}-${{ env.TARGET_TRIPLE }}.tar.gz flang+llvm-${{ env.LLVM_VERSION }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
