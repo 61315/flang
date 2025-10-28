@@ -1,0 +1,137 @@
+---
+name: Create Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag name to release (for example: v21.1.3)'
+        required: true
+        default: 'v21.1.3'
+      version:
+        description: 'Version string used in artifact names (for example: 21.1.3)'
+        required: true
+        default: '21.1.3'
+      rebuild:
+        description: 'Force rebuild? (rebuild all platforms / use existing artifacts)'
+        required: true
+        default: 'false'
+        type: boolean
+      draft:
+        description: 'Create release as draft?'
+        required: true
+        default: 'true'
+        type: boolean
+
+jobs:
+  build-windows-x86_64:
+    if: ${{ github.event.inputs.rebuild == 'true' }}
+    uses: ./.github/workflows/build-windows-x86_64.yml
+
+  build-linux-x86_64:
+    if: ${{ github.event.inputs.rebuild == 'true' }}
+    uses: ./.github/workflows/build-linux-x86_64.yml
+
+  build-linux-static-x86_64:
+    if: ${{ github.event.inputs.rebuild == 'true' }}
+    uses: ./.github/workflows/build-linux-static-x86_64.yml
+
+  build-macos-x86_64:
+    if: ${{ github.event.inputs.rebuild == 'true' }}
+    uses: ./.github/workflows/build-macos-x86_64.yml
+
+  build-macos-arm64:
+    if: ${{ github.event.inputs.rebuild == 'true' }}
+    uses: ./.github/workflows/build-macos-arm64.yml
+
+  create-release:
+    # needs: [build-windows-x86_64, build-linux-x86_64, build-macos-x86_64, build-macos-arm64]
+    runs-on: ubuntu-latest
+    # runs-on:
+    #   - self-hosted
+    #   - linux
+    #   - x64
+    permissions:
+      contents: write
+      actions: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set release variables
+        id: vars
+        run: |
+          echo "TAG_NAME=${{ github.event.inputs.tag || github.ref_name }}" >> $GITHUB_OUTPUT
+          echo "VERSION=${{ github.event.inputs.version || '21.1.3' }}" >> $GITHUB_OUTPUT
+
+      - name: Download artifacts (from this or previous workflow runs)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.vars.outputs.VERSION }}
+        run: |
+          set -e
+          mkdir -p artifacts
+          names=( \
+            "flang+llvm-${VERSION}-x86_64-pc-windows-msvc" \
+            "flang+llvm-${VERSION}-x86_64-unknown-linux-gnu" \
+            "flang+llvm-${VERSION}-x86_64-unknown-linux-gnu-static" \
+            "flang+llvm-${VERSION}-x86_64-apple-darwin" \
+            "flang+llvm-${VERSION}-arm64-apple-darwin" \
+          )
+
+          repo="${GITHUB_REPOSITORY}" # "{owner}/{repo}"
+
+          download_artifact() {
+            name="$1"
+            echo "Looking for artifact: $name"
+            
+            # get response and HTTP code # TODO: use github cli maybe or action blocks
+            response_and_code=$(curl -s -w "\n%{http_code}" -H "Authorization: Bearer ${GITHUB_TOKEN}" "https://api.github.com/repos/${repo}/actions/artifacts?per_page=100")
+            response=$(echo "$response_and_code" | head -n -1)
+            code=$(echo "$response_and_code" | tail -n1)
+            
+            if [ "$code" != "200" ]; then
+              echo "Error fetching artifacts for $name: HTTP $code"
+              echo "$response"
+              return
+            fi
+            id=$(echo "$response" | jq -r '.artifacts // [] | .[] | select(.name=="'"$name"'") | .id' | head -n1)
+            
+            if [ -z "$id" ] || [ "$id" = "null" ]; then
+              echo "Artifact not found for $name"
+              return
+            fi
+            echo "Found artifact id=$id, downloading..."
+            
+            curl -sL -H "Authorization: Bearer ${GITHUB_TOKEN}" -o /tmp/${id}.zip "https://api.github.com/repos/${repo}/actions/artifacts/${id}/zip"
+            unzip -q /tmp/${id}.zip -d ./artifacts/
+          }
+
+          pids=()
+          for name in "${names[@]}"; do
+            download_artifact "$name" &
+            pids+=( $! )
+          done
+
+          # wait for all background jobs
+          for pid in "${pids[@]}"; do
+            wait $pid
+          done
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.vars.outputs.TAG_NAME }}
+          name: flang+llvm ${{ steps.vars.outputs.VERSION }}
+          draft: ${{ github.event.inputs.draft == 'true' }}
+          prerelease: false
+          files: |
+            ./artifacts/flang+llvm-${{ steps.vars.outputs.VERSION }}-x86_64-pc-windows-msvc.zip
+            ./artifacts/flang+llvm-${{ steps.vars.outputs.VERSION }}-x86_64-unknown-linux-gnu.tar.gz
+            ./artifacts/flang+llvm-${{ steps.vars.outputs.VERSION }}-x86_64-unknown-linux-gnu-static.tar.gz
+            ./artifacts/flang+llvm-${{ steps.vars.outputs.VERSION }}-x86_64-apple-darwin.tar.gz
+            ./artifacts/flang+llvm-${{ steps.vars.outputs.VERSION }}-arm64-apple-darwin.tar.gz

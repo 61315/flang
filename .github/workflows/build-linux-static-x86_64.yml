@@ -1,5 +1,5 @@
 ---
-name: build flang for linux (x86_64)
+name: build flang for linux-static (x86_64)
 
 on:
   push:
@@ -22,7 +22,7 @@ jobs:
     env:
       SCCACHE_GHA_ENABLED: "true"
       LLVM_VERSION: "21.1.3"
-      TARGET_TRIPLE: "x86_64-unknown-linux-gnu"
+      TARGET_TRIPLE: "x86_64-unknown-linux-gnu-static"
 
     steps:
       - name: Checkout repository
