@@ -60,11 +60,12 @@ jobs:
         with:
           path: llvm-project
           key: llvm-source-${{ env.LLVM_VERSION }}
+          enableCrossOsArchive: true
 
       - name: Clone LLVM Project
         if: steps.cache-llvm.outputs.cache-hit != 'true'
         run: |
-          git clone --depth=1 --branch=llvmorg-${{ env.LLVM_VERSION }} https://github.com/llvm/llvm-project.git
+          git clone --depth=1 --branch=llvmorg-${{ env.LLVM_VERSION }} https://github.com/llvm/llvm-project.git --config core.autocrlf=input
 
       - name: Save LLVM Source Cache (before patches)
         if: steps.cache-llvm.outputs.cache-hit != 'true'
@@ -72,11 +73,12 @@ jobs:
         with:
           path: llvm-project
           key: llvm-source-${{ env.LLVM_VERSION }}
+          enableCrossOsArchive: true
             
       - name: Apply patches
         run: |
-          git -C llvm-project apply --whitespace=fix ../patches/disable-flang-pch-for-sccache.patch
-          git -C llvm-project apply --whitespace=fix ../patches/flang-rt-static-only.patch
+          git -C llvm-project apply --verbose --ignore-whitespace --whitespace=fix ../patches/disable-flang-pch-for-sccache.patch
+          git -C llvm-project apply --verbose --ignore-whitespace --whitespace=fix ../patches/flang-rt-static-only.patch
 
       - name: Configure CMake
         run: |
