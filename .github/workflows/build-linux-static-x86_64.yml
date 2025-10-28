@@ -355,11 +355,6 @@ jobs:
               tar czf flang+llvm-${{ env.LLVM_VERSION }}-${{ env.TARGET_TRIPLE }}.tar.gz flang+llvm-${{ env.LLVM_VERSION }}
             '
 
-      - name: Show sccache statistics
-        run: |
-          echo "=== sccache Statistics ==="
-          sccache --show-stats
-
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:

@@ -50,10 +50,6 @@ jobs:
         with:
           version: "v0.12.0"
 
-      # - name: Install Ninja
-      #   run: |
-      #     choco install ninja
-
       - name: Restore LLVM Source Cache
         id: cache-llvm
         uses: actions/cache/restore@v4
@@ -292,12 +288,6 @@ jobs:
           ninja -C build tools/flang/tools/install
           ninja -C build tools/llvm-nm/install
           ninja -C build tools/llvm-ar/install
-
-      - name: Show sccache statistics
-        shell: pwsh
-        run: |
-          Write-Host "=== sccache Statistics ==="
-          sccache --show-stats
 
       - name: Package binaries
         shell: pwsh

@@ -88,7 +88,7 @@ jobs:
                 -DLLVM_ENABLE_PROJECTS="clang;mlir;flang" \
                 -DLLVM_ENABLE_RUNTIMES="compiler-rt;flang-rt;openmp" \
                 -DLLVM_INCLUDE_TOOLS=ON \
-                -DLLVM_BUILD_TOOLS=OFF \
+                -DLLVM_BUILD_TOOLS=ON \
                 -DLLVM_INCLUDE_UTILS=OFF \
                 -DLLVM_BUILD_UTILS=OFF \
                 -DLLVM_INCLUDE_EXAMPLES=OFF \
@@ -273,11 +273,6 @@ jobs:
           ninja -C build tools/flang/tools/install
           ninja -C build tools/llvm-nm/install
           ninja -C build tools/llvm-ar/install
-
-      - name: Show sccache statistics
-        run: |
-          echo "=== sccache Statistics ==="
-          sccache --show-stats
 
       - name: Package binaries
         run: |

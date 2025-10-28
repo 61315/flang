@@ -42,10 +42,6 @@ jobs:
           echo "=== Disk Information ==="
           df -h
 
-      # - name: Install dependencies
-      #   run: |
-      #     brew install ninja cmake
-
       - name: Setup sccache
         uses: mozilla-actions/sccache-action@v0.0.9
         with:
@@ -275,11 +271,6 @@ jobs:
           ninja -C build tools/flang/tools/install
           ninja -C build tools/llvm-nm/install
           ninja -C build tools/llvm-ar/install
-
-      - name: Show sccache statistics
-        run: |
-          echo "=== sccache Statistics ==="
-          sccache --show-stats
 
       - name: Package binaries
         run: |
