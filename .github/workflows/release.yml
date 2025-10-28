@@ -126,7 +126,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.vars.outputs.TAG_NAME }}
-          name: flang+llvm ${{ steps.vars.outputs.VERSION }}
+          name: flang+llvm-${{ steps.vars.outputs.VERSION }}
           draft: ${{ github.event.inputs.draft == 'true' }}
           prerelease: false
           files: |

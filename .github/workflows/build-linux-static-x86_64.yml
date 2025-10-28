@@ -53,12 +53,17 @@ jobs:
         run: |
           docker build -t llvm-musl-builder:latest -f .github/workflows/containers/llvm-musl-builder/Dockerfile .
 
+      - name: Cache LLVM Source
+        id: cache-llvm
+        uses: actions/cache@v4
+        with:
+          path: llvm-project
+          key: llvm-source-${{ env.LLVM_VERSION }}
+
       - name: Clone LLVM Project
+        if: steps.cache-llvm.outputs.cache-hit != 'true'
         run: |
-          if [ ! -d "llvm-project" ]; then
-            git clone --depth=1 --branch=llvmorg-${{ env.LLVM_VERSION }} \
-              https://github.com/llvm/llvm-project.git
-          fi
+          git clone --depth=1 --branch=llvmorg-${{ env.LLVM_VERSION }} https://github.com/llvm/llvm-project.git
 
       - name: Configure, Build and Install
         run: |
