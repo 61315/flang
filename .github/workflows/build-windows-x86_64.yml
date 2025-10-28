@@ -60,7 +60,9 @@ jobs:
             https://github.com/llvm/llvm-project.git
             
       - name: Apply patches
-        run: git -C llvm-project apply --whitespace=fix ../patches/disable-flang-pch-for-sccache.patch
+        run: |
+          git -C llvm-project apply --whitespace=fix ../patches/disable-flang-pch-for-sccache.patch
+          git -C llvm-project apply --whitespace=fix ../patches/flang-rt-static-only.patch
 
       - name: Configure CMake
         run: |
