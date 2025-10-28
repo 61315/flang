@@ -54,9 +54,9 @@ jobs:
       #   run: |
       #     choco install ninja
 
-      - name: Cache LLVM Source
+      - name: Restore LLVM Source Cache
         id: cache-llvm
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: llvm-project
           key: llvm-source-${{ env.LLVM_VERSION }}
@@ -65,6 +65,13 @@ jobs:
         if: steps.cache-llvm.outputs.cache-hit != 'true'
         run: |
           git clone --depth=1 --branch=llvmorg-${{ env.LLVM_VERSION }} https://github.com/llvm/llvm-project.git
+
+      - name: Save LLVM Source Cache (before patches)
+        if: steps.cache-llvm.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: llvm-project
+          key: llvm-source-${{ env.LLVM_VERSION }}
             
       - name: Apply patches
         run: |
