@@ -45,7 +45,7 @@ RUN ARCH=$(uname -m) && \
     mv sccache-${SCCACHE_VERSION}-${ARCH}-unknown-linux-musl/sccache /usr/local/bin/ && \
     chmod +x /usr/local/bin/sccache && \
     rm -rf sccache.tar.gz sccache-${SCCACHE_VERSION}-${ARCH}-unknown-linux-musl
-    
+
 WORKDIR /work
 
 # env vars

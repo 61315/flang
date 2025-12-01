@@ -8,13 +8,13 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag name to release (for example: v21.1.3)'
-        required: true
-        default: 'v21.1.3'
+        description: 'Tag name to release (e.g., v21.1.3). Leave empty to use versions.env'
+        required: false
+        default: ''
       version:
-        description: 'Version string used in artifact names (for example: 21.1.3)'
-        required: true
-        default: '21.1.3'
+        description: 'Version string for artifact names (e.g., 21.1.3). Leave empty to use versions.env'
+        required: false
+        default: ''
       rebuild:
         description: 'Force rebuild? (rebuild all platforms / use existing artifacts)'
         required: true
@@ -48,12 +48,7 @@ jobs:
     uses: ./.github/workflows/build-macos-arm64.yml
 
   create-release:
-    # needs: [build-windows-x86_64, build-linux-x86_64, build-macos-x86_64, build-macos-arm64]
     runs-on: ubuntu-latest
-    # runs-on:
-    #   - self-hosted
-    #   - linux
-    #   - x64
     permissions:
       contents: write
       actions: read
@@ -65,8 +60,27 @@ jobs:
       - name: Set release variables
         id: vars
         run: |
-          echo "TAG_NAME=${{ github.event.inputs.tag || github.ref_name }}" >> $GITHUB_OUTPUT
-          echo "VERSION=${{ github.event.inputs.version || '21.1.3' }}" >> $GITHUB_OUTPUT
+          # Load defaults from versions.env
+          source versions.env
+
+          # Use input if provided, otherwise use versions.env, otherwise use git tag
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${LLVM_VERSION}"
+          fi
+
+          if [ -n "${{ github.event.inputs.tag }}" ]; then
+            TAG_NAME="${{ github.event.inputs.tag }}"
+          elif [ "${{ github.ref_type }}" = "tag" ]; then
+            TAG_NAME="${{ github.ref_name }}"
+          else
+            TAG_NAME="v${VERSION}"
+          fi
+
+          echo "TAG_NAME=${TAG_NAME}" >> $GITHUB_OUTPUT
+          echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Using TAG_NAME=${TAG_NAME}, VERSION=${VERSION}"
 
       - name: Download artifacts (from this or previous workflow runs)
         env:
@@ -83,30 +97,29 @@ jobs:
             "flang+llvm-${VERSION}-arm64-apple-darwin" \
           )
 
-          repo="${GITHUB_REPOSITORY}" # "{owner}/{repo}"
+          repo="${GITHUB_REPOSITORY}"
 
           download_artifact() {
             name="$1"
             echo "Looking for artifact: $name"
-            
-            # get response and HTTP code # TODO: use github cli maybe or action blocks
+
             response_and_code=$(curl -s -w "\n%{http_code}" -H "Authorization: Bearer ${GITHUB_TOKEN}" "https://api.github.com/repos/${repo}/actions/artifacts?per_page=100")
             response=$(echo "$response_and_code" | head -n -1)
             code=$(echo "$response_and_code" | tail -n1)
-            
+
             if [ "$code" != "200" ]; then
               echo "Error fetching artifacts for $name: HTTP $code"
               echo "$response"
               return
             fi
             id=$(echo "$response" | jq -r '.artifacts // [] | .[] | select(.name=="'"$name"'") | .id' | head -n1)
-            
+
             if [ -z "$id" ] || [ "$id" = "null" ]; then
               echo "Artifact not found for $name"
               return
             fi
             echo "Found artifact id=$id, downloading..."
-            
+
             curl -sL -H "Authorization: Bearer ${GITHUB_TOKEN}" -o /tmp/${id}.zip "https://api.github.com/repos/${repo}/actions/artifacts/${id}/zip"
             unzip -q /tmp/${id}.zip -d ./artifacts/
           }
@@ -117,7 +130,6 @@ jobs:
             pids+=( $! )
           done
 
-          # wait for all background jobs
           for pid in "${pids[@]}"; do
             wait $pid
           done

@@ -52,8 +52,8 @@ run_cmd "$FLANG" -###
 run_cmd "$FLANG" "$SRC_DIR/main.f08" -o "$OUT_DIR/main-f"
 run_cmd "$FLANG" -c "$SRC_DIR/foo.f08" -o "$OUT_DIR/foo.o"
 run_cmd "$FLANG" "$SRC_DIR/main.f08" "$OUT_DIR/foo.o" -o "$OUT_DIR/main-f" -###
-run_cmd "$FLANG" "$SRC_DIR/main.f08" "$OUT_DIR/foo.o" -o "$OUT_DIR/main-f" 
-# run_cmd gfortran "$SRC_DIR/main.f08" "$OUT_DIR/foo.o" -o "$OUT_DIR/main-f" 
+run_cmd "$FLANG" "$SRC_DIR/main.f08" "$OUT_DIR/foo.o" -o "$OUT_DIR/main-f"
+# run_cmd gfortran "$SRC_DIR/main.f08" "$OUT_DIR/foo.o" -o "$OUT_DIR/main-f"
 # run_cmd "$FLANG" "$SRC_DIR/main.f08" "$OUT_DIR/foo.o" -o "$OUT_DIR/main-f" --target=x86_64-unknown-linux-musl
 
 # run binary if exists and executable
@@ -63,7 +63,7 @@ else
   echo "Skipping execution: $OUT_DIR/main-f not found or not executable" | tee -a "$LOGFILE" >&2
 fi
 
-run_cmd cc "$SRC_DIR/main.c" "$OUT_DIR/foo.o" -o "$OUT_DIR/main-c" 
+run_cmd cc "$SRC_DIR/main.c" "$OUT_DIR/foo.o" -o "$OUT_DIR/main-c"
 if [ -x "$OUT_DIR/main-c" ]; then
   run_cmd "$OUT_DIR/main-c"
 else

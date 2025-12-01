@@ -6,12 +6,16 @@ on:
     branches: [master]
     paths:
       - '.github/workflows/build-linux-static-x86_64.yml'
-      - '.github/workflows/containers/llvm-musl-builder/**'
+      - 'docker/llvm-musl-builder/**'
+      - 'cmake/CMakePresets.json'
+      - 'versions.env'
   pull_request:
     branches: [master]
     paths:
       - '.github/workflows/build-linux-static-x86_64.yml'
-      - '.github/workflows/containers/llvm-musl-builder/**'
+      - 'docker/llvm-musl-builder/**'
+      - 'cmake/CMakePresets.json'
+      - 'versions.env'
   workflow_dispatch:
   workflow_call:
 
@@ -21,12 +25,18 @@ jobs:
     timeout-minutes: 480
     env:
       SCCACHE_GHA_ENABLED: "true"
-      LLVM_VERSION: "21.1.3"
       TARGET_TRIPLE: "x86_64-unknown-linux-gnu-static"
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Load version configuration
+        run: |
+          source versions.env
+          echo "LLVM_VERSION=$LLVM_VERSION" >> $GITHUB_ENV
+          echo "SCCACHE_VERSION=$SCCACHE_VERSION" >> $GITHUB_ENV
+          echo "NINJA_VERSION=$NINJA_VERSION" >> $GITHUB_ENV
 
       - name: Show system information
         run: |
@@ -44,14 +54,14 @@ jobs:
       - name: Setup sccache
         uses: mozilla-actions/sccache-action@v0.0.9
         with:
-          version: "v0.12.0"
+          version: ${{ env.SCCACHE_VERSION }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Build Docker image
         run: |
-          docker build -t llvm-musl-builder:latest -f .github/workflows/containers/llvm-musl-builder/Dockerfile .
+          docker build -t llvm-musl-builder:latest -f docker/llvm-musl-builder/Dockerfile .
 
       - name: Restore LLVM Source Cache
         id: cache-llvm
@@ -73,6 +83,8 @@ jobs:
           key: llvm-source-${{ env.LLVM_VERSION }}
 
       - name: Configure, Build and Install
+        env:
+          NINJA_VERSION: ${{ env.NINJA_VERSION }}
         run: |
           docker run --rm \
             -v "${PWD}:/work" \
@@ -82,15 +94,15 @@ jobs:
             -e ACTIONS_RESULTS_URL="${ACTIONS_RESULTS_URL}" \
             -e ACTIONS_RUNTIME_TOKEN="${ACTIONS_RUNTIME_TOKEN}" \
             -e SCCACHE_GHA_ENABLED="true" \
+            -e NINJA_VERSION="${NINJA_VERSION}" \
             llvm-musl-builder:latest \
             /bin/bash -c '
               set -e
 
               export CMAKE_C_COMPILER_LAUNCHER="sccache"
               export CMAKE_CXX_COMPILER_LAUNCHER="sccache"
-              
-              echo "=== Installing Ninja 1.13.1 ==="
-              NINJA_VERSION=1.13.1
+
+              echo "=== Installing Ninja ${NINJA_VERSION} ==="
               cd /tmp
               wget -q https://github.com/ninja-build/ninja/archive/refs/tags/v${NINJA_VERSION}.tar.gz
               tar xzf v${NINJA_VERSION}.tar.gz
@@ -104,248 +116,22 @@ jobs:
               cd /work
 
               mkdir -p /work/build /work/install
-              
+
               echo "=== Configuring CMake (Static Build) ==="
-              cmake -S /work/llvm-project/llvm -B /work/build -G Ninja \
-                    -DLLVM_PARALLEL_COMPILE_JOBS="" \
-                    -DLLVM_PARALLEL_LINK_JOBS="" \
-                    -DLLVM_PARALLEL_TABLEGEN_JOBS="" \
-                    -DFLANG_PARALLEL_COMPILE_JOBS="" \
-                    -DLLVM_USE_LINKER="mold" \
-                    -DCMAKE_BUILD_TYPE="Release" \
-                    -DCMAKE_C_COMPILER="clang" \
-                    -DCMAKE_CXX_COMPILER="clang++" \
-                    -DCMAKE_C_FLAGS="-Xclang -fno-pch-timestamp" \
-                    -DCMAKE_CXX_FLAGS="-Xclang -fno-pch-timestamp" \
-                    -DCMAKE_C_COMPILER_LAUNCHER="sccache" \
-                    -DCMAKE_CXX_COMPILER_LAUNCHER="sccache" \
-                    -DCMAKE_C_STANDARD=17 \
-                    -DCMAKE_CXX_STANDARD=17 \
-                    \
-                    -DCMAKE_EXE_LINKER_FLAGS="-static" \
-                    -DLLVM_BUILD_STATIC=ON \
-                    -DLLVM_BUILD_LLVM_DYLIB=OFF \
-                    -DLLVM_LINK_LLVM_DYLIB=OFF \
-                    -DLLVM_ENABLE_PIC=OFF \
-                    -DBUILD_SHARED_LIBS=OFF \
-                    \
-                    -DLLVM_ENABLE_PROJECTS="clang;mlir;flang" \
-                    -DLLVM_ENABLE_RUNTIMES="compiler-rt;flang-rt;openmp;libcxx;libcxxabi;libunwind" \
-                    \
-                    -DCLANG_DEFAULT_LINKER="lld" \
-                    -DCLANG_DEFAULT_RTLIB="compiler-rt" \
-                    -DCLANG_DEFAULT_UNWINDLIB="libunwind" \
-                    -DCLANG_DEFAULT_CXX_STDLIB="libc++" \
-                    \
-                    -DLIBCXX_USE_COMPILER_RT=ON \
-                    -DLIBCXXABI_USE_LLVM_UNWINDER=ON \
-                    -DLIBCXX_HAS_MUSL_LIBC=ON \
-                    -DLIBCXX_ENABLE_SHARED=OFF \
-                    -DLIBCXX_ENABLE_STATIC=ON \
-                    -DLIBCXXABI_ENABLE_SHARED=OFF \
-                    -DLIBCXXABI_ENABLE_STATIC=ON \
-                    -DLIBUNWIND_ENABLE_SHARED=OFF \
-                    -DLIBUNWIND_ENABLE_STATIC=ON \
-                    -DLIBUNWIND_USE_COMPILER_RT=ON \
-                    \
-                    -DCLANG_INCLUDE_TESTS=OFF \
-                    -DCLANG_BUILD_TOOLS=OFF \
-                    -DCLANG_PLUGIN_SUPPORT=OFF \
-                    -DCLANG_ENABLE_ARCMT=OFF \
-                    \
-                    -DCOMPILER_RT_BUILD_BUILTINS=ON \
-                    -DCOMPILER_RT_BUILD_CRT=ON \
-                    -DCOMPILER_RT_BUILD_SANITIZERS=OFF \
-                    -DCOMPILER_RT_BUILD_XRAY=OFF \
-                    -DCOMPILER_RT_BUILD_LIBFUZZER=OFF \
-                    -DCOMPILER_RT_BUILD_PROFILE=OFF \
-                    -DCOMPILER_RT_BUILD_CTX_PROFILE=OFF \
-                    -DCOMPILER_RT_BUILD_MEMPROF=OFF \
-                    -DCOMPILER_RT_BUILD_ORC=OFF \
-                    -DCOMPILER_RT_BUILD_GWP_ASAN=OFF \
-                    \
-                    -DFLANG_DEFAULT_LINKER="lld" \
-                    -DFLANG_RUNTIME_F128_MATH_LIB="" \
-                    -DFLANG_BUILD_TOOLS=OFF \
-                    -DFLANG_INCLUDE_TESTS=OFF \
-                    -DFLANG_RT_INCLUDE_TESTS=OFF \
-                    \
-                    -DLIBOMP_ENABLE_SHARED=OFF \
-                    -DLIBOMP_OMPT_SUPPORT=OFF \
-                    -DLIBOMP_OMPD_SUPPORT=OFF \
-                    \
-                    -DLLVM_TARGETS_TO_BUILD="host;WebAssembly" \
-                    -DLLVM_DEFAULT_TARGET_TRIPLE="x86_64-unknown-linux-gnu" \
-                    -DCMAKE_INSTALL_PREFIX="/work/install" \
-                    -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON \
-                    \
-                    -DLLVM_BUILD_TESTS=OFF \
-                    -DLLVM_INCLUDE_TESTS=OFF \
-                    -DLLVM_INCLUDE_EXAMPLES=OFF \
-                    -DLLVM_ENABLE_BINDINGS=OFF \
-                    -DLLVM_BUILD_STATIC=ON \
-                    -DLLVM_INCLUDE_TOOLS=ON \
-                    -DLLVM_BUILD_TOOLS=ON \
-                    -DLLVM_INCLUDE_UTILS=OFF \
-                    -DLLVM_BUILD_UTILS=OFF \
-                    -DLLVM_BUILD_EXAMPLES=OFF \
-                    -DLLVM_BUILD_LLVM_C_DYLIB=OFF \
-                    -DLLVM_INCLUDE_DOCS=OFF \
-                    -DLLVM_BUILD_BENCHMARKS=OFF \
-                    -DLLVM_INCLUDE_BENCHMARKS=OFF \
-                    -DLLVM_ENABLE_OCAMLDOC=OFF \
-                    -DLLVM_ENABLE_ZLIB=OFF \
-                    -DLLVM_ENABLE_ZSTD=OFF \
-                    -DLLVM_ENABLE_TELEMETRY=OFF \
-                    -DLLVM_ENABLE_PLUGINS=OFF \
-                    -DLLVM_INCLUDE_RUNTIMES=ON \
-                    -DLLVM_BUILD_RUNTIME=OFF \
-                    -DLLVM_BUILD_RUNTIMES=ON \
-                    -DCLANG_ENABLE_STATIC_ANALYZER=OFF \
-                    -DCLANG_TOOL_APINOTES_TEST_BUILD=OFF \
-                    -DCLANG_TOOL_CLANG_CHECK_BUILD=OFF \
-                    -DCLANG_TOOL_CLANG_DIFF_BUILD=OFF \
-                    -DCLANG_TOOL_CLANG_EXTDEF_MAPPING_BUILD=OFF \
-                    -DCLANG_TOOL_CLANG_FORMAT_BUILD=OFF \
-                    -DCLANG_TOOL_CLANG_FUZZER_BUILD=OFF \
-                    -DCLANG_TOOL_CLANG_IMPORT_TEST_BUILD=OFF \
-                    -DCLANG_TOOL_CLANG_LINKER_WRAPPER_BUILD=OFF \
-                    -DCLANG_TOOL_CLANG_NVLINK_WRAPPER_BUILD=OFF \
-                    -DCLANG_TOOL_CLANG_OFFLOAD_BUNDLER_BUILD=OFF \
-                    -DCLANG_TOOL_CLANG_OFFLOAD_PACKAGER_BUILD=OFF \
-                    -DCLANG_TOOL_CLANG_REFACTOR_BUILD=OFF \
-                    -DCLANG_TOOL_CLANG_REPL_BUILD=OFF \
-                    -DCLANG_TOOL_CLANG_SCAN_DEPS_BUILD=OFF \
-                    -DCLANG_TOOL_CLANG_SHLIB_BUILD=OFF \
-                    -DCLANG_TOOL_C_INDEX_TEST_BUILD=OFF \
-                    -DCLANG_TOOL_DIAGTOOL_BUILD=OFF \
-                    -DCLANG_TOOL_DRIVER_BUILD=ON \
-                    -DCLANG_TOOL_LIBCLANG_BUILD=OFF \
-                    -DCLANG_TOOL_SCAN_BUILD_BUILD=OFF \
-                    -DCLANG_TOOL_SCAN_BUILD_PY_BUILD=OFF \
-                    -DCLANG_TOOL_SCAN_VIEW_BUILD=OFF \
-                    -DBUILD_SHARED_LIBS=OFF \
-                    -DLLVM_TOOL_LLVM_CGDATA_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_DEBUGINFO_ANALYZER_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_CTXPROF_UTIL_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_REMARKUTIL_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_GPU_LOADER_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_READTAPI_BUILD=OFF \
-                    -DLLVM_TOOL_REDUCE_CHUNK_LIST_BUILD=OFF \
-                    -DLLVM_TOOL_SPIRV_TOOLS_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_CONFIG_BUILD=ON \
-                    -DCLANG_TOOL_CIR_LSP_SERVER_BUILD=OFF \
-                    -DCLANG_TOOL_CIR_OPT_BUILD=OFF \
-                    -DCLANG_TOOL_CIR_TRANSLATE_BUILD=OFF \
-                    -DCLANG_TOOL_CLANG_INSTALLAPI_BUILD=OFF \
-                    -DCLANG_TOOL_CLANG_SYCL_LINKER_BUILD=OFF \
-                    -DCLANG_TOOL_OFFLOAD_ARCH_BUILD=OFF \
-                    -DCPACK_BINARY_NSIS=OFF \
-                    -DCPACK_SOURCE_7Z=OFF \
-                    -DCPACK_SOURCE_ZIP=OFF \
-                    -DLLVM_ENABLE_LIBEDIT=OFF \
-                    -DLLVM_ENABLE_LIBPFM=OFF \
-                    -DLLVM_ENABLE_LIBXML2=OFF \
-                    -DLLVM_ENABLE_Z3_SOLVER=OFF \
-                    -DFLANG_PLUGIN_SUPPORT=OFF \
-                    -DLLVM_TOOL_BUGPOINT_BUILD=OFF \
-                    -DLLVM_TOOL_BUGPOINT_PASSES_BUILD=OFF \
-                    -DLLVM_TOOL_CLANG_BUILD=OFF \
-                    -DLLVM_TOOL_DSYMUTIL_BUILD=OFF \
-                    -DLLVM_TOOL_DXIL_DIS_BUILD=OFF \
-                    -DLLVM_TOOL_GOLD_BUILD=OFF \
-                    -DLLVM_TOOL_LLC_BUILD=OFF \
-                    -DLLVM_TOOL_LLDB_BUILD=OFF \
-                    -DLLVM_TOOL_LLI_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_AR_BUILD=ON \
-                    -DLLVM_TOOL_LLVM_AS_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_AS_FUZZER_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_BCANALYZER_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_CAT_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_CFI_VERIFY_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_COV_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_CVTRES_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_CXXDUMP_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_CXXFILT_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_CXXMAP_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_C_TEST_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_DEBUGINFOD_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_DEBUGINFOD_FIND_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_DIFF_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_DIS_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_DIS_FUZZER_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_DLANG_DEMANGLE_FUZZER_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_DWARFDUMP_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_DWARFUTIL_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_DWP_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_EXEGESIS_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_EXTRACT_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_GSYMUTIL_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_IFS_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_ISEL_FUZZER_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_ITANIUM_DEMANGLE_FUZZER_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_JITLINK_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_JITLISTENER_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_LIBTOOL_DARWIN_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_LINK_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_LIPO_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_LTO2_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_LTO_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_MCA_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_MC_ASSEMBLE_FUZZER_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_MC_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_MC_DISASSEMBLE_FUZZER_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_MICROSOFT_DEMANGLE_FUZZER_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_ML_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_MODEXTRACT_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_MT_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_NM_BUILD=ON \
-                    -DLLVM_TOOL_LLVM_OBJCOPY_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_OBJDUMP_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_OPT_FUZZER_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_OPT_REPORT_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_PDBUTIL_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_PROFDATA_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_PROFGEN_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_RC_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_READOBJ_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_REDUCE_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_RTDYLD_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_RUST_DEMANGLE_FUZZER_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_SHLIB_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_SIM_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_SIZE_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_SPECIAL_CASE_LIST_FUZZER_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_SPLIT_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_STRESS_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_STRINGS_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_SYMBOLIZER_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_TLI_CHECKER_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_UNDNAME_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_XRAY_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_YAML_NUMERIC_PARSER_FUZZER_BUILD=OFF \
-                    -DLLVM_TOOL_LLVM_YAML_PARSER_FUZZER_BUILD=OFF \
-                    -DLLVM_TOOL_LTO_BUILD=OFF \
-                    -DLLVM_TOOL_OBJ2YAML_BUILD=OFF \
-                    -DLLVM_TOOL_OPT_BUILD=OFF \
-                    -DLLVM_TOOL_OPT_VIEWER_BUILD=OFF \
-                    -DLLVM_TOOL_REMARKS_SHLIB_BUILD=OFF \
-                    -DLLVM_TOOL_SANCOV_BUILD=OFF \
-                    -DLLVM_TOOL_SANSTATS_BUILD=OFF \
-                    -DLLVM_TOOL_VERIFY_USELISTORDER_BUILD=OFF \
-                    -DLLVM_TOOL_VFABI_DEMANGLE_FUZZER_BUILD=OFF \
-                    -DLLVM_TOOL_XCODE_TOOLCHAIN_BUILD=OFF \
-                    -DLLVM_TOOL_YAML2OBJ_BUILD=OFF
+              cp /work/cmake/CMakePresets.json /work/llvm-project/llvm/
+              cmake --preset linux-static-x86_64 -S /work/llvm-project/llvm -B /work/build \
+                    -DCMAKE_C_COMPILER_LAUNCHER=sccache \
+                    -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
 
               echo "=== Building ==="
               ninja -C /work/build runtimes
-              
+
               echo "=== Installing ==="
               ninja -C /work/build runtimes/install
               ninja -C /work/build tools/flang/tools/install
               ninja -C /work/build tools/llvm-nm/install
               ninja -C /work/build tools/llvm-ar/install
-              
+
               echo "=== sccache Statistics ==="
               sccache --show-stats
 
