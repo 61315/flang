@@ -114,11 +114,6 @@ jobs:
           ninja -C build tools/llvm-nm/install
           ninja -C build tools/llvm-ar/install
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
       - name: Setup Emscripten
         shell: pwsh
         run: |

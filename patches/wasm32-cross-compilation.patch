@@ -1,5 +1,5 @@
 diff --git a/flang/include/flang/Optimizer/Builder/Runtime/RTBuilder.h b/flang/include/flang/Optimizer/Builder/Runtime/RTBuilder.h
-index 98d7de81c..a11fb118d 100644
+index 98d7de81c..ead0797f3 100644
 --- a/flang/include/flang/Optimizer/Builder/Runtime/RTBuilder.h
 +++ b/flang/include/flang/Optimizer/Builder/Runtime/RTBuilder.h
 @@ -24,9 +24,12 @@
@@ -50,7 +50,7 @@ index 98d7de81c..a11fb118d 100644
  #define REDUCTION_REF_OPERATION_MODEL(T)                                       \
    template <>                                                                  \
    constexpr TypeBuilderFunc                                                    \
-@@ -698,6 +729,101 @@ getModel<Fortran::runtime::ReductionDerivedTypeOperation>() {
+@@ -698,6 +729,112 @@ getModel<Fortran::runtime::ReductionDerivedTypeOperation>() {
    };
  }
  
@@ -130,6 +130,17 @@ index 98d7de81c..a11fb118d 100644
 +  }
 +};
 +
++/// unsigned long long - 8 bytes on LP64/LLP64, used as size_t on Windows (LLP64)
++/// On LP64 (Linux/Mac), size_t = unsigned long (already specialized above)
++template <>
++struct DLGetModel<unsigned long long> {
++  static mlir::Type get(mlir::MLIRContext *context, const mlir::DataLayout &dl,
++                        const llvm::Triple &) {
++    // When used as size_t (Windows), should match target pointer size
++    return mlir::IntegerType::get(context, getTargetSizeTBitwidth(context, dl));
++  }
++};
++
 +/// ReductionCharOperation<CHAR> - function pointer with std::size_t parameters
 +/// Signature: void (*)(CHAR*, size_t, const CHAR*, const CHAR*, size_t, size_t)
 +/// size_t matches pointer size on all platforms (LP64, ILP32, LLP64).
@@ -152,7 +163,7 @@ index 98d7de81c..a11fb118d 100644
  template <typename...>
  struct RuntimeTableKey;
  template <typename RT, typename... ATs>
-@@ -715,6 +841,20 @@ struct RuntimeTableKey<RT(ATs...)> {
+@@ -715,6 +852,20 @@ struct RuntimeTableKey<RT(ATs...)> {
        return mlir::FunctionType::get(ctxt, argTys, {retTy});
      };
    }
@@ -173,7 +184,7 @@ index 98d7de81c..a11fb118d 100644
  };
  
  //===----------------------------------------------------------------------===//
-@@ -764,6 +904,11 @@ struct RuntimeTableEntry<RuntimeTableKey<KT>, RuntimeIdentifier<Cs...>> {
+@@ -764,6 +915,11 @@ struct RuntimeTableEntry<RuntimeTableKey<KT>, RuntimeIdentifier<Cs...>> {
    static constexpr FuncTypeBuilderFunc getTypeModel() {
      return RuntimeTableKey<KT>::getTypeModel();
    }
@@ -185,7 +196,7 @@ index 98d7de81c..a11fb118d 100644
    static constexpr const char name[sizeof...(Cs) + 1] = {Cs..., '\0'};
  };
  
-@@ -803,8 +948,46 @@ struct RuntimeTableEntry<RuntimeTableKey<KT>, RuntimeIdentifier<Cs...>> {
+@@ -803,8 +959,46 @@ struct RuntimeTableEntry<RuntimeTableKey<KT>, RuntimeIdentifier<Cs...>> {
  #define mkRTKey(X) FirmkKey(RTNAME(X))
  #define EXPAND_AND_QUOTE_KEY(S) ExpandAndQuoteKey(RTNAME(S))
  
@@ -232,7 +243,7 @@ index 98d7de81c..a11fb118d 100644
  template <typename RuntimeEntry>
  static mlir::func::FuncOp getRuntimeFunc(mlir::Location loc,
                                           fir::FirOpBuilder &builder,
-@@ -814,7 +997,7 @@ static mlir::func::FuncOp getRuntimeFunc(mlir::Location loc,
+@@ -814,7 +1008,7 @@ static mlir::func::FuncOp getRuntimeFunc(mlir::Location loc,
    auto func = builder.getNamedFunction(name);
    if (func)
      return func;
