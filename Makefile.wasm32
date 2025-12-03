@@ -37,15 +37,15 @@ $(BUILD)%.o : $(SOURCE)%.cpp $(CONFIG_H)
 
 $(CONFIG_H):
 	@mkdir -p $(@D)
-	@echo '/* Auto-generated config.h */' > $@
-	@echo '#ifndef FORTRAN_RUNTIME_CONFIG_H' >> $@
-	@echo '#define FORTRAN_RUNTIME_CONFIG_H' >> $@
-	@echo '#define HAVE_STRERROR_R 0' >> $@
-	@echo '#define HAVE_DECL_STRERROR_S 0' >> $@
-	@echo '/* #undef HAVE_BACKTRACE */' >> $@
-	@echo '#endif' >> $@
+	@printf '%s\n' \
+		'/* Auto-generated config.h */' \
+		'#ifndef FORTRAN_RUNTIME_CONFIG_H' \
+		'#define FORTRAN_RUNTIME_CONFIG_H' \
+		'#define HAVE_STRERROR_R 0' \
+		'#define HAVE_DECL_STRERROR_S 0' \
+		'/* #undef HAVE_BACKTRACE */' \
+		'#endif' > "$@"
 
 .PHONY: clean
 clean:
 	@rm -f $(RUNTIME_OBJECTS) $(BUILD)/libflang_rt.runtime.wasm32.a $(CONFIG_H)
-

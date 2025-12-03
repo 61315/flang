@@ -145,12 +145,10 @@ jobs:
 
               echo "=== sccache Statistics ==="
               sccache --show-stats
-            '
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
+              echo "=== Fixing permissions ==="
+              chown -R $(stat -c %u:%g /work) /work/build /work/install
+            '
 
       - name: Setup Emscripten
         run: |
