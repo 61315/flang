@@ -9,6 +9,9 @@ on:
       - 'docker/llvm-musl-builder/**'
       - 'cmake/CMakePresets.json'
       - 'versions.env'
+      - 'patches/**'
+      - 'Makefile.wasm32'
+      - 'scripts/**'
   pull_request:
     branches: [master]
     paths:
@@ -16,6 +19,9 @@ on:
       - 'docker/llvm-musl-builder/**'
       - 'cmake/CMakePresets.json'
       - 'versions.env'
+      - 'patches/**'
+      - 'Makefile.wasm32'
+      - 'scripts/**'
   workflow_dispatch:
   workflow_call:
 
@@ -37,6 +43,8 @@ jobs:
           echo "LLVM_VERSION=$LLVM_VERSION" >> $GITHUB_ENV
           echo "SCCACHE_VERSION=$SCCACHE_VERSION" >> $GITHUB_ENV
           echo "NINJA_VERSION=$NINJA_VERSION" >> $GITHUB_ENV
+          echo "EMSDK_VERSION=$EMSDK_VERSION" >> $GITHUB_ENV
+          echo "EMSDK_HASH=$EMSDK_HASH" >> $GITHUB_ENV
 
       - name: Show system information
         run: |
@@ -82,9 +90,11 @@ jobs:
           path: llvm-project
           key: llvm-source-${{ env.LLVM_VERSION }}
 
-      - name: Configure, Build and Install
-        env:
-          NINJA_VERSION: ${{ env.NINJA_VERSION }}
+      - name: Apply patches
+        run: |
+          git -C llvm-project apply --verbose --ignore-whitespace --whitespace=fix ../patches/wasm32-cross-compilation.patch
+
+      - name: Configure CMake
         run: |
           docker run --rm \
             -v "${PWD}:/work" \
@@ -115,31 +125,28 @@ jobs:
               ninja --version
               cd /work
 
-              mkdir -p /work/build /work/install
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
 
-              echo "=== Configuring CMake (Static Build) ==="
-              cp /work/cmake/CMakePresets.json /work/llvm-project/llvm/
-              cmake --preset linux-static-x86_64 -S /work/llvm-project/llvm -B /work/build \
-                    -DCMAKE_C_COMPILER_LAUNCHER=sccache \
-                    -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
+      - name: Setup Emscripten
+        run: |
+          curl -fsSL "https://storage.googleapis.com/webassembly/emscripten-releases-builds/linux/${{ env.EMSDK_HASH }}/wasm-binaries.tar.xz" -o emsdk.tar.xz
+          mkdir -p emsdk
+          tar -xf emsdk.tar.xz -C emsdk --strip-components=1
+          echo "$PWD/emsdk/bin" >> $GITHUB_PATH
+          echo "$PWD/emsdk/emscripten" >> $GITHUB_PATH
 
-              echo "=== Building ==="
-              ninja -C /work/build runtimes
+      - name: Test wasm32 cross-compilation
+        run: |
+          emcc --generate-config
+          python3 scripts/test-wasm32.py --install-dir=./install --build-dir=./build
 
-              echo "=== Installing ==="
-              ninja -C /work/build runtimes/install
-              ninja -C /work/build tools/flang/tools/install
-              ninja -C /work/build tools/llvm-nm/install
-              ninja -C /work/build tools/llvm-ar/install
-
-              echo "=== sccache Statistics ==="
-              sccache --show-stats
-
-              echo "=== Creating tarball ==="
-              cd /work
-              mv install flang+llvm-${{ env.LLVM_VERSION }}
-              tar czf flang+llvm-${{ env.LLVM_VERSION }}-${{ env.TARGET_TRIPLE }}.tar.gz flang+llvm-${{ env.LLVM_VERSION }}
-            '
+      - name: Package binaries
+        run: |
+          mv install flang+llvm-${{ env.LLVM_VERSION }}
+          tar -czf flang+llvm-${{ env.LLVM_VERSION }}-${{ env.TARGET_TRIPLE }}.tar.gz flang+llvm-${{ env.LLVM_VERSION }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

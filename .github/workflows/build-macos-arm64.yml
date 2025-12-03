@@ -8,12 +8,18 @@ on:
       - '.github/workflows/build-macos-arm64.yml'
       - 'cmake/CMakePresets.json'
       - 'versions.env'
+      - 'patches/**'
+      - 'Makefile.wasm32'
+      - 'scripts/**'
   pull_request:
     branches: [master]
     paths:
       - '.github/workflows/build-macos-arm64.yml'
       - 'cmake/CMakePresets.json'
       - 'versions.env'
+      - 'patches/**'
+      - 'Makefile.wasm32'
+      - 'scripts/**'
   workflow_dispatch:
   workflow_call:
 
@@ -36,6 +42,8 @@ jobs:
           source versions.env
           echo "LLVM_VERSION=$LLVM_VERSION" >> $GITHUB_ENV
           echo "SCCACHE_VERSION=$SCCACHE_VERSION" >> $GITHUB_ENV
+          echo "EMSDK_VERSION=$EMSDK_VERSION" >> $GITHUB_ENV
+          echo "EMSDK_HASH=$EMSDK_HASH" >> $GITHUB_ENV
 
       - name: Show system information
         run: |
@@ -74,6 +82,10 @@ jobs:
           path: llvm-project
           key: llvm-source-${{ env.LLVM_VERSION }}
 
+      - name: Apply patches
+        run: |
+          git -C llvm-project apply --verbose --ignore-whitespace --whitespace=fix ../patches/wasm32-cross-compilation.patch
+
       - name: Configure CMake
         run: |
           cp cmake/CMakePresets.json llvm-project/llvm/
@@ -93,6 +105,24 @@ jobs:
           ninja -C build tools/flang/tools/install
           ninja -C build tools/llvm-nm/install
           ninja -C build tools/llvm-ar/install
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Emscripten
+        run: |
+          curl -fsSL "https://storage.googleapis.com/webassembly/emscripten-releases-builds/mac/${{ env.EMSDK_HASH }}/wasm-binaries.tar.xz" -o emsdk.tar.xz
+          mkdir -p emsdk
+          tar -xf emsdk.tar.xz -C emsdk --strip-components=1
+          echo "$PWD/emsdk/bin" >> $GITHUB_PATH
+          echo "$PWD/emsdk/emscripten" >> $GITHUB_PATH
+
+      - name: Test wasm32 cross-compilation
+        run: |
+          emcc --generate-config
+          python3 scripts/test-wasm32.py --install-dir=./install --build-dir=./build
 
       - name: Package binaries
         run: |
