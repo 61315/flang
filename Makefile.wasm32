@@ -1,0 +1,51 @@
+ROOT = $(abspath .)
+SOURCE = $(ROOT)/llvm-project
+BUILD = $(ROOT)/build
+
+CONFIG_H = $(BUILD)/flang-rt/include/config.h
+
+# RUNTIME_SOURCES := $(wildcard $(SOURCE)/flang/runtime/*.cpp)
+RUNTIME_SOURCES := $(wildcard $(SOURCE)/flang-rt/lib/runtime/*.cpp)
+RUNTIME_SOURCES += $(SOURCE)/flang/lib/Decimal/decimal-to-binary.cpp
+RUNTIME_SOURCES += $(SOURCE)/flang/lib/Decimal/binary-to-decimal.cpp
+RUNTIME_OBJECTS = $(patsubst $(SOURCE)/%,$(BUILD)/%,$(RUNTIME_SOURCES:.cpp=.o))
+
+RUNTIME_CXXFLAGS += -Oz
+RUNTIME_CXXFLAGS += -flto
+RUNTIME_CXXFLAGS += -fno-exceptions
+RUNTIME_CXXFLAGS += -fno-rtti
+RUNTIME_CXXFLAGS += -DNDEBUG
+
+# RUNTIME_CXXFLAGS += -I$(BUILD)/include -I$(BUILD)/tools/flang/runtime
+RUNTIME_CXXFLAGS += -I$(BUILD)/flang-rt/include
+RUNTIME_CXXFLAGS += -I$(BUILD)/include -I$(SOURCE)/flang-rt/include
+RUNTIME_CXXFLAGS += -I$(SOURCE)/flang/include -I$(SOURCE)/llvm/include
+RUNTIME_CXXFLAGS += -DFLANG_LITTLE_ENDIAN
+RUNTIME_CXXFLAGS += -fPIC -Wno-c++11-narrowing -fvisibility=hidden
+RUNTIME_CXXFLAGS += -DFE_UNDERFLOW=0 -DFE_OVERFLOW=0 -DFE_INEXACT=0
+RUNTIME_CXXFLAGS += -DFE_INVALID=0 -DFE_DIVBYZERO=0 -DFE_ALL_EXCEPT=0
+
+# Output: libflang_rt.runtime.wasm32.a (wasm32-unknown-emscripten target)
+$(BUILD)/libflang_rt.runtime.wasm32.a: $(CONFIG_H) $(RUNTIME_OBJECTS)
+	@mkdir -p $(@D)
+	@rm -f $@
+	emar -rcs $@ $(RUNTIME_OBJECTS)
+
+$(BUILD)%.o : $(SOURCE)%.cpp $(CONFIG_H)
+	@mkdir -p $(@D)
+	em++ $(RUNTIME_CXXFLAGS) -o $@ -c $<
+
+$(CONFIG_H):
+	@mkdir -p $(@D)
+	@echo '/* Auto-generated config.h */' > $@
+	@echo '#ifndef FORTRAN_RUNTIME_CONFIG_H' >> $@
+	@echo '#define FORTRAN_RUNTIME_CONFIG_H' >> $@
+	@echo '#define HAVE_STRERROR_R 0' >> $@
+	@echo '#define HAVE_DECL_STRERROR_S 0' >> $@
+	@echo '/* #undef HAVE_BACKTRACE */' >> $@
+	@echo '#endif' >> $@
+
+.PHONY: clean
+clean:
+	@rm -f $(RUNTIME_OBJECTS) $(BUILD)/libflang_rt.runtime.wasm32.a $(CONFIG_H)
+

@@ -9,6 +9,8 @@ on:
       - 'cmake/CMakePresets.json'
       - 'versions.env'
       - 'patches/**'
+      - 'Makefile.wasm32'
+      - 'scripts/**'
   pull_request:
     branches: [master]
     paths:
@@ -16,6 +18,8 @@ on:
       - 'cmake/CMakePresets.json'
       - 'versions.env'
       - 'patches/**'
+      - 'Makefile.wasm32'
+      - 'scripts/**'
   workflow_dispatch:
   workflow_call:
 
@@ -39,6 +43,8 @@ jobs:
           source versions.env
           echo "LLVM_VERSION=$LLVM_VERSION" >> $GITHUB_ENV
           echo "SCCACHE_VERSION=$SCCACHE_VERSION" >> $GITHUB_ENV
+          echo "EMSDK_VERSION=$EMSDK_VERSION" >> $GITHUB_ENV
+          echo "EMSDK_HASH=$EMSDK_HASH" >> $GITHUB_ENV
 
       - name: Show system information
         shell: pwsh
@@ -86,6 +92,7 @@ jobs:
         run: |
           git -C llvm-project apply --verbose --ignore-whitespace --whitespace=fix ../patches/disable-flang-pch-for-sccache.patch
           git -C llvm-project apply --verbose --ignore-whitespace --whitespace=fix ../patches/flang-rt-static-only.patch
+          git -C llvm-project apply --verbose --ignore-whitespace --whitespace=fix ../patches/wasm32-cross-compilation.patch
 
       - name: Configure CMake
         run: |
@@ -106,6 +113,27 @@ jobs:
           ninja -C build tools/flang/tools/install
           ninja -C build tools/llvm-nm/install
           ninja -C build tools/llvm-ar/install
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Emscripten
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri "https://storage.googleapis.com/webassembly/emscripten-releases-builds/win/${{ env.EMSDK_HASH }}/wasm-binaries.zip" -OutFile emsdk.zip
+          Expand-Archive -Path emsdk.zip -DestinationPath emsdk-tmp
+          Move-Item -Path emsdk-tmp\install -Destination emsdk
+          Remove-Item -Recurse -Force emsdk-tmp
+          "$PWD\emsdk\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+          "$PWD\emsdk\emscripten" | Out-File -FilePath $env:GITHUB_PATH -Append
+
+      - name: Test wasm32 cross-compilation
+        shell: bash
+        run: |
+          emcc --generate-config
+          python scripts/test-wasm32.py --install-dir=./install --build-dir=./build
 
       - name: Package binaries
         shell: pwsh
