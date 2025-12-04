@@ -49,6 +49,14 @@ jobs:
 
   create-release:
     runs-on: ubuntu-latest
+    needs: [build-windows-x86_64, build-linux-x86_64, build-linux-arm64, build-macos-x86_64, build-macos-arm64]
+    # Run if: not rebuilding (use existing artifacts) OR all rebuilds succeeded
+    # Note: !cancelled() needed because skipped jobs count as "not success"
+    if: |
+      !cancelled() && (
+        github.event.inputs.rebuild != 'true' ||
+        !contains(needs.*.result, 'failure')
+      )
     permissions:
       contents: write
       actions: read
