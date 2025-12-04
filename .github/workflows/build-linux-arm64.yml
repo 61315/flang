@@ -152,7 +152,7 @@ jobs:
 
       - name: Setup Emscripten
         run: |
-          curl -fsSL "https://storage.googleapis.com/webassembly/emscripten-releases-builds/linux/${{ env.EMSDK_HASH }}/wasm-binaries.tar.xz" -o emsdk.tar.xz
+          curl -fsSL "https://storage.googleapis.com/webassembly/emscripten-releases-builds/linux/${{ env.EMSDK_HASH }}/wasm-binaries-arm64.tar.xz" -o emsdk.tar.xz
           mkdir -p emsdk
           tar -xf emsdk.tar.xz -C emsdk --strip-components=1
           echo "$PWD/emsdk/bin" >> $GITHUB_PATH
