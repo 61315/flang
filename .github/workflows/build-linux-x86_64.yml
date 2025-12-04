@@ -6,12 +6,14 @@ on:
     branches: [master]
     paths:
       - '.github/workflows/build-linux-x86_64.yml'
+      - 'docker/llvm-musl-builder/**'
       - 'cmake/CMakePresets.json'
       - 'versions.env'
   pull_request:
     branches: [master]
     paths:
       - '.github/workflows/build-linux-x86_64.yml'
+      - 'docker/llvm-musl-builder/**'
       - 'cmake/CMakePresets.json'
       - 'versions.env'
   workflow_dispatch:
@@ -20,11 +22,9 @@ on:
 jobs:
   build-linux-x86_64:
     runs-on: ubuntu-latest
-    timeout-minutes: 360
+    timeout-minutes: 480
     env:
       SCCACHE_GHA_ENABLED: "true"
-      CMAKE_C_COMPILER_LAUNCHER: "sccache"
-      CMAKE_CXX_COMPILER_LAUNCHER: "sccache"
       TARGET_TRIPLE: "x86_64-unknown-linux-gnu"
 
     steps:
@@ -36,6 +36,7 @@ jobs:
           source versions.env
           echo "LLVM_VERSION=$LLVM_VERSION" >> $GITHUB_ENV
           echo "SCCACHE_VERSION=$SCCACHE_VERSION" >> $GITHUB_ENV
+          echo "NINJA_VERSION=$NINJA_VERSION" >> $GITHUB_ENV
 
       - name: Show system information
         run: |
@@ -50,15 +51,17 @@ jobs:
           echo "=== Disk Information ==="
           df -h
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y mold
-
       - name: Setup sccache
         uses: mozilla-actions/sccache-action@v0.0.9
         with:
           version: ${{ env.SCCACHE_VERSION }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        run: |
+          docker build -t llvm-musl-builder:latest -f docker/llvm-musl-builder/Dockerfile .
 
       - name: Restore LLVM Source Cache
         id: cache-llvm
@@ -79,30 +82,64 @@ jobs:
           path: llvm-project
           key: llvm-source-${{ env.LLVM_VERSION }}
 
-      - name: Configure CMake
+      - name: Configure, Build and Install
+        env:
+          NINJA_VERSION: ${{ env.NINJA_VERSION }}
         run: |
-          cp cmake/CMakePresets.json llvm-project/llvm/
-          cmake --preset linux-x86_64 -S llvm-project/llvm -B build \
-                -DCMAKE_C_COMPILER_LAUNCHER=sccache \
-                -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
+          docker run --rm \
+            -v "${PWD}:/work" \
+            -v "${HOME}/.cache/sccache:/cache/sccache" \
+            -e SCCACHE_DIR=/cache/sccache \
+            -e ACTIONS_CACHE_SERVICE_V2="${ACTIONS_CACHE_SERVICE_V2}" \
+            -e ACTIONS_RESULTS_URL="${ACTIONS_RESULTS_URL}" \
+            -e ACTIONS_RUNTIME_TOKEN="${ACTIONS_RUNTIME_TOKEN}" \
+            -e SCCACHE_GHA_ENABLED="true" \
+            -e NINJA_VERSION="${NINJA_VERSION}" \
+            llvm-musl-builder:latest \
+            /bin/bash -c '
+              set -e
 
-      - name: Build
-        run: |
-          echo "=== Building ==="
-          ninja -C build runtimes
+              export CMAKE_C_COMPILER_LAUNCHER="sccache"
+              export CMAKE_CXX_COMPILER_LAUNCHER="sccache"
 
-      - name: Install
-        run: |
-          echo "=== Installing ==="
-          ninja -C build runtimes/install
-          ninja -C build tools/flang/tools/install
-          ninja -C build tools/llvm-nm/install
-          ninja -C build tools/llvm-ar/install
+              echo "=== Installing Ninja ${NINJA_VERSION} ==="
+              cd /tmp
+              wget -q https://github.com/ninja-build/ninja/archive/refs/tags/v${NINJA_VERSION}.tar.gz
+              tar xzf v${NINJA_VERSION}.tar.gz
+              cd ninja-${NINJA_VERSION}
+              cmake -B build \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DBUILD_TESTING=OFF
+              cmake --build build -j$(nproc)
+              cp build/ninja /usr/local/bin/
+              ninja --version
+              cd /work
 
-      - name: Package binaries
-        run: |
-          mv install flang+llvm-${{ env.LLVM_VERSION }}
-          tar -czf flang+llvm-${{ env.LLVM_VERSION }}-${{ env.TARGET_TRIPLE }}.tar.gz flang+llvm-${{ env.LLVM_VERSION }}
+              mkdir -p /work/build /work/install
+
+              echo "=== Configuring CMake (Static Build) ==="
+              cp /work/cmake/CMakePresets.json /work/llvm-project/llvm/
+              cmake --preset linux-static-x86_64 -S /work/llvm-project/llvm -B /work/build \
+                    -DCMAKE_C_COMPILER_LAUNCHER=sccache \
+                    -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
+
+              echo "=== Building ==="
+              ninja -C /work/build runtimes
+
+              echo "=== Installing ==="
+              ninja -C /work/build runtimes/install
+              ninja -C /work/build tools/flang/tools/install
+              ninja -C /work/build tools/llvm-nm/install
+              ninja -C /work/build tools/llvm-ar/install
+
+              echo "=== sccache Statistics ==="
+              sccache --show-stats
+
+              echo "=== Creating tarball ==="
+              cd /work
+              mv install flang+llvm-${{ env.LLVM_VERSION }}
+              tar czf flang+llvm-${{ env.LLVM_VERSION }}-${{ env.TARGET_TRIPLE }}.tar.gz flang+llvm-${{ env.LLVM_VERSION }}
+            '
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

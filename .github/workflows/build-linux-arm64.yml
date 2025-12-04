@@ -1,18 +1,18 @@
 ---
-name: build flang for linux-static (x86_64)
+name: build flang for linux (arm64)
 
 on:
   push:
     branches: [master]
     paths:
-      - '.github/workflows/build-linux-static-x86_64.yml'
+      - '.github/workflows/build-linux-arm64.yml'
       - 'docker/llvm-musl-builder/**'
       - 'cmake/CMakePresets.json'
       - 'versions.env'
   pull_request:
     branches: [master]
     paths:
-      - '.github/workflows/build-linux-static-x86_64.yml'
+      - '.github/workflows/build-linux-arm64.yml'
       - 'docker/llvm-musl-builder/**'
       - 'cmake/CMakePresets.json'
       - 'versions.env'
@@ -20,12 +20,12 @@ on:
   workflow_call:
 
 jobs:
-  build-linux-static-x86_64:
-    runs-on: ubuntu-latest
+  build-linux-arm64:
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 480
     env:
       SCCACHE_GHA_ENABLED: "true"
-      TARGET_TRIPLE: "x86_64-unknown-linux-gnu-static"
+      TARGET_TRIPLE: "aarch64-unknown-linux-gnu"
 
     steps:
       - name: Checkout repository
@@ -119,7 +119,7 @@ jobs:
 
               echo "=== Configuring CMake (Static Build) ==="
               cp /work/cmake/CMakePresets.json /work/llvm-project/llvm/
-              cmake --preset linux-static-x86_64 -S /work/llvm-project/llvm -B /work/build \
+              cmake --preset linux-static-arm64 -S /work/llvm-project/llvm -B /work/build \
                     -DCMAKE_C_COMPILER_LAUNCHER=sccache \
                     -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
 
