@@ -281,6 +281,14 @@
       }
     },
     {
+      "name": "linux-static-arm64",
+      "displayName": "Linux ARM64 Static (musl)",
+      "inherits": "linux-static-x86_64",
+      "cacheVariables": {
+        "LLVM_DEFAULT_TARGET_TRIPLE": "aarch64-unknown-linux-gnu"
+      }
+    },
+    {
       "name": "macos-x86_64",
       "displayName": "macOS x86_64 (Intel)",
       "inherits": "base",
