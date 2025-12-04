@@ -90,11 +90,9 @@ jobs:
           path: llvm-project
           key: llvm-source-${{ env.LLVM_VERSION }}
 
-      - name: Apply patches
-        run: |
-          git -C llvm-project apply --verbose --ignore-whitespace --whitespace=fix ../patches/wasm32-cross-compilation.patch
-
-      - name: Configure CMake
+      - name: Configure, Build and Install
+        env:
+          NINJA_VERSION: ${{ env.NINJA_VERSION }}
         run: |
           docker run --rm \
             -v "${PWD}:/work" \
@@ -125,6 +123,33 @@ jobs:
               ninja --version
               cd /work
 
+              mkdir -p /work/build /work/install
+
+              echo "=== Applying patches ==="
+              git -C /work/llvm-project apply --verbose --ignore-whitespace --whitespace=fix /work/patches/wasm32-cross-compilation.patch
+
+              echo "=== Configuring CMake (Static Build) ==="
+              cp /work/cmake/CMakePresets.json /work/llvm-project/llvm/
+              cmake --preset linux-static-x86_64 -S /work/llvm-project/llvm -B /work/build \
+                    -DCMAKE_C_COMPILER_LAUNCHER=sccache \
+                    -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
+
+              echo "=== Building ==="
+              ninja -C /work/build runtimes
+
+              echo "=== Installing ==="
+              ninja -C /work/build runtimes/install
+              ninja -C /work/build tools/flang/tools/install
+              ninja -C /work/build tools/llvm-nm/install
+              ninja -C /work/build tools/llvm-ar/install
+
+              echo "=== sccache Statistics ==="
+              sccache --show-stats
+
+              echo "=== Fixing permissions ==="
+              chown -R $(stat -c %u:%g /work) /work/build /work/install
+            '
+
       - name: Setup Emscripten
         run: |
           curl -fsSL "https://storage.googleapis.com/webassembly/emscripten-releases-builds/linux/${{ env.EMSDK_HASH }}/wasm-binaries.tar.xz" -o emsdk.tar.xz
@@ -141,7 +166,7 @@ jobs:
       - name: Package binaries
         run: |
           mv install flang+llvm-${{ env.LLVM_VERSION }}
-          tar -czf flang+llvm-${{ env.LLVM_VERSION }}-${{ env.TARGET_TRIPLE }}.tar.gz flang+llvm-${{ env.LLVM_VERSION }}
+          tar czf flang+llvm-${{ env.LLVM_VERSION }}-${{ env.TARGET_TRIPLE }}.tar.gz flang+llvm-${{ env.LLVM_VERSION }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
